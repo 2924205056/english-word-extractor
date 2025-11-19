@@ -1,0 +1,7 @@
+streamlit
+nltk
+python-docx
+chardet
+spacy
+# 下面这一行会让服务器自动下载英语模型，非常重要
+https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0.tar.gz
