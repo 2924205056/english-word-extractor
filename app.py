@@ -5,6 +5,7 @@ import zipfile
 import math
 import chardet
 import os
+import json  # 新增：用于读取描述文件
 
 # NLP Imports
 import nltk
@@ -57,10 +58,7 @@ def load_spacy_model():
 download_nltk_resources()
 nlp_spacy = load_spacy_model()
 
-# ------------------ 核心逻辑函数 (保持不变) ------------------
-# (为了节省篇幅，这里省略了具体的提取函数逻辑，实际运行时它们是必须的)
-# ... 这里的 extract_english_from_srt 等函数与之前的代码完全一致 ...
-# 为了保证代码完整运行，我这里再次简写一遍关键函数，你可以直接使用之前完整的逻辑
+# ------------------ 核心逻辑函数 ------------------
 
 def extract_text_from_bytes(file_obj, filename):
     if '.' in filename:
@@ -91,7 +89,6 @@ def extract_text_from_bytes(file_obj, filename):
     
     # 简单清洗
     if ext in ['srt', 'vtt', 'ass']:
-        # 这里简化处理，实际建议保留之前完整的清洗逻辑
         clean_text = re.sub(r"<.*?>", "", text)
         return clean_text
     return text
@@ -110,7 +107,6 @@ def process_words(all_text, mode, min_len, filter_set=None):
     cleaned = [w for w in cleaned if w]
     lemmatized = []
     
-    # 简化显示，不使用进度条以免冲突
     if mode == "spacy" and nlp_spacy:
         chunk_size = 50000
         chunks = [cleaned[i:i + chunk_size] for i in range(0, len(cleaned), chunk_size)]
@@ -141,7 +137,6 @@ def process_words(all_text, mode, min_len, filter_set=None):
 
 # ------------------ 主界面导航 ------------------
 
-# 侧边栏导航
 st.sidebar.title("功能导航")
 page = st.sidebar.radio("选择模式:", ["🛠️ 制作生词本", "📚 公共词书库"])
 
@@ -179,7 +174,6 @@ if page == "🛠️ 制作生词本":
             
             st.success(f"提取成功！共 {len(result_words)} 个单词。")
             
-            # 预览与下载
             with st.expander("👀 预览结果"):
                 st.write(", ".join(result_words[:100]))
             
@@ -191,42 +185,59 @@ if page == "🛠️ 制作生词本":
         else:
             st.warning("未提取到文本。")
 
-# ==================== 页面 2: 公共词书库 ====================
+# ==================== 页面 2: 公共词书库 (已更新支持描述) ====================
 elif page == "📚 公共词书库":
     st.title("📚 公共词书库")
     st.markdown("这里存放了站长精选的生词本，大家可以免费下载。")
     
-    # 定义书架文件夹路径
     LIBRARY_DIR = "library"
+    INFO_FILE = "info.json" # 描述文件的名字
     
-    # 检查文件夹是否存在
     if not os.path.exists(LIBRARY_DIR):
         os.makedirs(LIBRARY_DIR)
-        st.info(f"书架为空。请在 GitHub 仓库中创建 '{LIBRARY_DIR}' 文件夹并上传 .txt 文件。")
+        st.info(f"请在 GitHub 创建 '{LIBRARY_DIR}' 文件夹。")
     
-    # 读取文件夹里的文件
+    # 1. 尝试读取 info.json 里的描述信息
+    book_info = {}
+    info_path = os.path.join(LIBRARY_DIR, INFO_FILE)
+    if os.path.exists(info_path):
+        try:
+            with open(info_path, "r", encoding="utf-8") as f:
+                book_info = json.load(f)
+        except Exception as e:
+            st.error(f"描述文件读取失败 (Json格式错误): {e}")
+
     files = [f for f in os.listdir(LIBRARY_DIR) if f.endswith(".txt")]
     
     if not files:
-        st.warning("📭 书架目前是空的，请稍后再来！")
+        st.warning("📭 书架目前是空的，请上传 .txt 文件到 GitHub 的 library 文件夹！")
     else:
-        # 用两列布局展示
         col1, col2 = st.columns(2)
         for i, filename in enumerate(files):
             file_path = os.path.join(LIBRARY_DIR, filename)
             
-            # 读取文件内容用于下载
             with open(file_path, "r", encoding="utf-8") as f:
                 file_content = f.read()
-            
-            # 计算单词数
             word_count = len(file_content.splitlines())
             
-            # 在列中展示
+            # 获取该文件的描述信息 (如果没写，就用默认值)
+            meta = book_info.get(filename, {})
+            display_title = meta.get("title", filename) # 如果有标题就用标题，没有就用文件名
+            display_desc = meta.get("desc", "暂无描述")   # 获取描述
+            
             with (col1 if i % 2 == 0 else col2):
                 with st.container(border=True):
-                    st.subheader(f"📄 {filename}")
-                    st.caption(f"包含单词数: {word_count}")
+                    # 显示带 emoji 的标题
+                    st.subheader(f"📄 {display_title}")
+                    
+                    # 显示描述信息 (灰色小字)
+                    if display_desc != "暂无描述":
+                        st.info(display_desc)
+                    else:
+                        st.caption("无详细描述")
+                        
+                    st.caption(f"📚 单词数: **{word_count}**")
+                    
                     st.download_button(
                         label=f"📥 下载 {filename}",
                         data=file_content,
