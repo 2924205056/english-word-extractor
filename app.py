@@ -35,7 +35,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# 注入 CSS：增加呼吸感，优化阅读体验
+# 注入 CSS：增加呼吸感，优化阅读体验，并修复代码块过长问题
 st.markdown("""
 <style>
     /* 全局背景色微调 */
@@ -86,8 +86,10 @@ st.markdown("""
     a { color: #0366d6; text-decoration: none; }
     a:hover { text-decoration: underline; }
     
-    /* Code block 样式微调，让复制框更像文本域 */
+    /* 核心优化：限制 st.code 代码块的最大高度，防止刷屏 */
     .stCodeBlock {
+        max-height: 200px !important; /* 强制限高 */
+        overflow-y: auto !important;  /* 允许内部滚动 */
         border: 1px solid #e0e0e0;
         border-radius: 8px;
     }
@@ -255,7 +257,7 @@ def process_words(all_text, mode, min_len, filter_set=None):
 with st.sidebar:
     st.image("https://img.icons8.com/fluency/96/dictionary.png", width=50)
     st.markdown("### VocabMaster")
-    st.caption("v5.0 Final Edition")
+    st.caption("v6.0 Optimized Edition")
     st.markdown("---")
     
     menu = st.radio(
@@ -420,35 +422,35 @@ if menu == "⚡ 制作生词本":
 
         col_preview, col_action = st.columns([1.5, 1], gap="medium")
 
-        # 左侧：列表预览 (优化逻辑)
+        # 左侧：列表预览
         with col_preview:
             st.subheader("📋 单词预览")
             # 构建 DataFrame 优化展示
             df_words = pd.DataFrame(words, columns=["Vocabulary"])
-            df_words.index += 1 # 索引从1开始
+            df_words.index += 1 
             
             st.dataframe(
                 df_words,
                 use_container_width=True,
                 height=450,
                 column_config={
-                    "Vocabulary": st.column_config.TextColumn(
-                        "提取结果 (可搜索)",
-                        help="双击单元格可复制单个单词"
-                    )
+                    "Vocabulary": st.column_config.TextColumn("提取结果")
                 }
             )
 
-        # 右侧：复制/导出/导入 (新增一键复制)
+        # 右侧：复制/导出/导入 (优化：折叠式复制 + 限高)
         with col_action:
             st.subheader("💾 保存与学习")
             tab1, tab2 = st.tabs(["📥 本地 & 扇贝", "☁️ 公共库发布"])
             
             with tab1:
-                # 1. 一键复制 (核心优化：使用 st.code 原生支持复制)
+                # 1. 一键复制 (优化版：折叠+限高)
                 st.markdown("##### 1. 一键复制 (推荐)")
-                st.caption("点击右上角的 **📄 Copy** 按钮，即可将所有单词复制到剪贴板，随后可去扇贝粘贴。")
-                st.code("\n".join(words), language="text")
+                st.caption(f"共 **{len(words)}** 个单词。点击下方展开后，使用右上角的 **Copy** 按钮即可全选复制。")
+                
+                # 使用 expander 收纳内容，CSS 限制高度
+                with st.expander("📋 点击展开完整词表 (Click to Copy)", expanded=False):
+                    st.code("\n".join(words), language="text")
 
                 st.markdown("---")
 
@@ -572,8 +574,8 @@ elif menu == "🌍 公共词书库":
                                 use_container_width=True
                             )
                         
-                        # 增加一个折叠的复制区域，方便直接复制
-                        with st.expander("📋 展开复制内容"):
+                        # 优化：折叠式复制 + CSS 限高
+                        with st.expander("📋 展开以复制 (Copy)"):
                              st.code(content, language="text")
 
             except: continue
