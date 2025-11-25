@@ -26,7 +26,7 @@ try:
 except ImportError:
     _HAS_SPACY = False
 
-# ------------------ 页面配置 & 样式优化 ------------------
+# ------------------ 1. 页面配置 & 现代 CSS 注入 ------------------
 st.set_page_config(
     page_title="VocabMaster | 智能词书工坊", 
     page_icon="⚡", 
@@ -81,19 +81,13 @@ st.markdown("""
         margin-bottom: 15px;
     }
     
-    /* 资源链接样式 */
-    .resource-link {
-        text-decoration: none;
-        color: #0366d6;
-        font-weight: 500;
-    }
-    .resource-link:hover {
-        text-decoration: underline;
-    }
+    /* 链接样式 */
+    a { color: #0366d6; text-decoration: none; }
+    a:hover { text-decoration: underline; }
 </style>
 """, unsafe_allow_html=True)
 
-# ------------------ 资源加载 (核心功能不变) ------------------
+# ------------------ 2. 缓存资源加载 ------------------
 @st.cache_resource
 def download_nltk_resources():
     resources = ["punkt", "averaged_perceptron_tagger", "averaged_perceptron_tagger_eng", "wordnet", "omw-1.4", "stopwords"]
@@ -117,11 +111,10 @@ def load_spacy_model():
 download_nltk_resources()
 nlp_spacy = load_spacy_model()
 
-# ------------------ 核心逻辑函数 ------------------
+# ------------------ 3. 核心逻辑函数 ------------------
 def save_to_github_library(filename, content, title, desc):
     """GitHub 上传逻辑"""
     try:
-        # 尝试获取 Secrets，如果不存在则给出友好提示
         if "GITHUB_TOKEN" not in st.secrets:
             st.error("🔒 系统未配置 GitHub Token，无法连接云端。请在 .streamlit/secrets.toml 中配置。")
             return
@@ -164,7 +157,7 @@ def save_to_github_library(filename, content, title, desc):
         else:
             repo.create_file(info_path, "Create info.json", new_info_str)
             
-        # 3. 同时保存到本地 library 文件夹，确保立即在“公共库”可见
+        # 3. 本地同步（确保立即可见）
         local_lib = "library"
         if not os.path.exists(local_lib): os.makedirs(local_lib)
         
@@ -172,7 +165,6 @@ def save_to_github_library(filename, content, title, desc):
             f.write(content)
         
         local_info_path = os.path.join(local_lib, "info.json")
-        # 读取本地现有info
         local_info = {}
         if os.path.exists(local_info_path):
             with open(local_info_path, "r", encoding="utf-8") as f:
@@ -250,13 +242,13 @@ def process_words(all_text, mode, min_len, filter_set=None):
             final_words.append(w)
     return final_words
 
-# ------------------ UI 布局设计 ------------------
+# ------------------ 4. UI 布局设计 ------------------
 
-# 侧边栏
+# === 侧边栏 ===
 with st.sidebar:
     st.image("https://img.icons8.com/fluency/96/dictionary.png", width=50)
     st.markdown("### VocabMaster")
-    st.caption("v2.2 Resource Edition")
+    st.caption("v3.0 Ultimate Edition")
     st.markdown("---")
     
     menu = st.radio(
@@ -272,40 +264,75 @@ with st.sidebar:
 if menu == "⚡ 制作生词本":
     st.title("⚡ 智能生词提取工坊")
     
-    # --- 指引区域 & 资源推荐 (新增) ---
-    with st.expander("📖 新手指南 & 字幕资源推荐 (点击展开)", expanded=False):
+    # --- A. 指引区域 & 资源导航 (多标签页升级版) ---
+    with st.expander("📖 新手指南 & 宝藏资源导航 (点击展开)", expanded=False):
         
-        tab_guide, tab_resources = st.tabs(["💡 如何使用", "🔗 没字幕？去哪找"])
+        tab_guide, tab_subs, tab_books, tab_learn = st.tabs(["💡 操作指引", "🎬 影视字幕", "📚 名著 & 阅读", "🎧 名师 & 听力"])
         
+        # Tab 1: 操作指引
         with tab_guide:
             st.markdown("""
-            1.  **准备文件**：找到你想学习的字幕文件 (`.srt`, `.ass`) 或英文文档。
-            2.  **设置规则**：在左侧设置过滤条件，建议上传“熟词表”以过滤掉简单词。
-            3.  **上传分析**：拖入文件，系统自动提取高频生词。
-            4.  **导出分享**：生成结果后，可下载 ZIP 或发布到公共库。
-            """)
+            <div style="padding: 10px; background: #f8f9fa; border-radius: 8px;">
+            <h4 style="margin-top:0">🚀 快速上手流程</h4>
+            <ol>
+                <li><b>找素材</b>：从右侧标签页下载字幕 (.srt) 或 名著 (.txt)。</li>
+                <li><b>定规则</b>：在左侧栏设置“最短词长”，建议上传“熟词表”屏蔽简单词。</li>
+                <li><b>传文件</b>：将文件拖入下方上传区，点击“开始智能提取”。</li>
+                <li><b>存词本</b>：生成结果后，下载 ZIP 包或发布到公共库，导入 Anki/扇贝 等软件背诵。</li>
+            </ol>
+            </div>
+            """, unsafe_allow_html=True)
             
-        with tab_resources:
-            st.markdown("这里整理了常用的字幕下载站点，方便您寻找学习素材：")
-            c_res1, c_res2 = st.columns(2)
-            with c_res1:
-                st.markdown("🎯 **[伪射手网 (Assrt)](https://assrt.net/)**")
-                st.caption("老牌字幕站，资源极其丰富，支持中英双语。")
-                
-                st.markdown("📺 **[字幕库 (Zimuku)](http://zimuku.org/)**")
-                st.caption("美剧、日剧更新速度快，搜索体验好。")
-            with c_res2:
-                st.markdown("💎 **[SubHD](https://subhd.tv/)**")
-                st.caption("界面清爽，高清影视字幕的首选之地。")
-                
-                st.markdown("🌎 **[OpenSubtitles](https://www.opensubtitles.org/)**")
-                st.caption("全球最大的字幕库，寻找纯英文字幕的最佳选择。")
+        # Tab 2: 字幕资源 (影视剧)
+        with tab_subs:
+            st.info("💡 提示：下载 .srt 或 .ass 格式的字幕文件，直接拖入本工具即可提取生词。")
+            c1, c2 = st.columns(2)
+            with c1:
+                st.markdown("🎯 **[伪射手网 (Assrt)](https://assrt.net/)**\n\n*老牌字幕站，资源极其丰富，支持中英双语。*")
+                st.markdown("📺 **[字幕库 (Zimuku)](http://zimuku.org/)**\n\n*美剧、日剧更新速度快，搜索体验好。*")
+            with c2:
+                st.markdown("💎 **[SubHD](https://subhd.tv/)**\n\n*界面清爽，高清影视字幕的首选之地。*")
+                st.markdown("🌎 **[OpenSubtitles](https://www.opensubtitles.org/)**\n\n*全球最大的字幕库，寻找纯英文字幕的最佳选择。*")
 
-    # 状态管理初始化
+        # Tab 3: 名著 & 阅读 (新增)
+        with tab_books:
+            st.success("📚 这里的资源大多提供 .txt 格式，最适合本工具进行分析！")
+            c1, c2 = st.columns(2)
+            with c1:
+                st.markdown("🏛️ **[Project Gutenberg](https://www.gutenberg.org/)**")
+                st.caption("古腾堡计划，拥有 70,000+ 免费电子书（公版名著），提供纯文本 .txt 下载，**强烈推荐**。")
+                
+                st.markdown("📖 **[Standard Ebooks](https://standardebooks.org/)**")
+                st.caption("排版精美的公版书，质量极高，适合精读。")
+            with c2:
+                st.markdown("📰 **[The Economist (经济学人)](https://www.economist.com/)**")
+                st.caption("虽然是付费源，但其文章是学习高级词汇和写作的标杆。")
+                
+                st.markdown("🐲 **[China Daily (双语版)](https://language.chinadaily.com.cn/)**")
+                st.caption("更适合中国读者的双语新闻，适合提取时政类词汇。")
+
+        # Tab 4: 名师 & 听力 (新增)
+        with tab_learn:
+            st.warning("🎧 技巧：下载演讲稿 (Transcript) 放入本工具，学完单词再去听，效果翻倍。")
+            c1, c2 = st.columns(2)
+            with c1:
+                st.markdown("🔴 **[TED Talks](https://www.ted.com/)**")
+                st.caption("思想的盛宴。每个视频都自带 **Transcript (文稿)**，直接复制粘贴成 txt 即可提取。")
+                
+                st.markdown("🇬🇧 **[BBC Learning English](https://www.bbc.co.uk/learningenglish/)**")
+                st.caption("经典的 6 Minute English，拥有完整的 pdf/text 文稿支持。")
+            with c2:
+                st.markdown("🎓 **[Coursera](https://www.coursera.org/)**")
+                st.caption("全球顶级大学课程。下载课程字幕进行分析，是掌握专业英语（学术/编程/商务）的捷径。")
+                
+                st.markdown("🇺🇸 **[NPR News](https://www.npr.org/)**")
+                st.caption("美国国家公共电台，美音磨耳朵的神器，多数新闻提供文字版。")
+
+    # 状态初始化 (保证结果不丢失)
     if 'result_words' not in st.session_state: st.session_state.result_words = []
     if 'source_files_count' not in st.session_state: st.session_state.source_files_count = 0
     
-    # --- 主操作区 ---
+    # --- B. 主操作区 ---
     c_config, c_upload = st.columns([1, 2], gap="large")
     
     # 左栏：配置
@@ -360,18 +387,18 @@ if menu == "⚡ 制作生词本":
                         my_bar.progress(100, text=f"正在使用 {mode_key.upper()} 引擎清洗数据...")
                         words = process_words(full_text, mode_key, min_len, filter_set)
                         
-                        # 更新 Session State
+                        # 保存到 Session State
                         st.session_state.result_words = words
                         st.session_state.source_files_count = len(uploaded_files)
                         
                         my_bar.empty()
                         st.success(f"提取完成！共发现 {len(words)} 个生词。")
                         time.sleep(0.5)
-                        st.rerun() # 强制刷新显示结果
+                        st.rerun() # 刷新以渲染结果
                     else:
                         st.error("无法从文件中识别文字，请检查文件格式。")
 
-    # --- 结果展示区 (Step 3) ---
+    # --- C. 结果展示区 (独立渲染) ---
     if st.session_state.result_words:
         st.divider()
         st.markdown('<div class="step-header">3️⃣ 结果预览与导出</div>', unsafe_allow_html=True)
@@ -454,11 +481,10 @@ elif menu == "🌍 公共词书库":
     with col_search:
         search_q = st.text_input("🔍 搜索词书标题...", placeholder="输入关键词搜索...").lower()
 
-    # 数据加载
+    # 数据加载 (容错处理)
     LIBRARY_DIR = "library"
     INFO_FILE = "info.json"
     
-    # 确保文件夹存在
     if not os.path.exists(LIBRARY_DIR): 
         os.makedirs(LIBRARY_DIR)
     
@@ -497,7 +523,7 @@ elif menu == "🌍 公共词书库":
                 desc = meta.get("desc", "暂无描述")
                 date = meta.get("date", "")
                 
-                # 轮询列
+                # 轮询列布局
                 with cols[i % 3]:
                     with st.container(border=True):
                         st.subheader(f"📄 {title}")
