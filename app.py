@@ -111,8 +111,9 @@ nlp_spacy = load_spacy_model()
 def save_to_github_library(filename, content, title, desc):
     """GitHub 上传逻辑"""
     try:
+        # 尝试获取 Secrets，如果不存在则给出友好提示
         if "GITHUB_TOKEN" not in st.secrets:
-            st.error("🔒 系统未配置 GitHub Token，无法连接云端。请联系管理员。")
+            st.error("🔒 系统未配置 GitHub Token，无法连接云端。请在 .streamlit/secrets.toml 中配置。")
             return
 
         token = st.secrets["GITHUB_TOKEN"]
@@ -125,12 +126,14 @@ def save_to_github_library(filename, content, title, desc):
         library_path = f"library/{filename}"
         info_path = "library/info.json"
         
+        # 1. 上传/更新词书文件
         try:
             contents = repo.get_contents(library_path)
             repo.update_file(library_path, f"Update {filename}", content, contents.sha)
         except:
             repo.create_file(library_path, f"Create {filename}", content)
 
+        # 2. 更新 info.json
         try:
             info_contents = repo.get_contents(info_path)
             info_data = json.loads(info_contents.decoded_content.decode("utf-8"))
@@ -151,6 +154,24 @@ def save_to_github_library(filename, content, title, desc):
         else:
             repo.create_file(info_path, "Create info.json", new_info_str)
             
+        # 3. 同时保存到本地 library 文件夹，确保立即在“公共库”可见
+        local_lib = "library"
+        if not os.path.exists(local_lib): os.makedirs(local_lib)
+        
+        with open(os.path.join(local_lib, filename), "w", encoding="utf-8") as f:
+            f.write(content)
+        
+        local_info_path = os.path.join(local_lib, "info.json")
+        # 读取本地现有info
+        local_info = {}
+        if os.path.exists(local_info_path):
+            with open(local_info_path, "r", encoding="utf-8") as f:
+                try: local_info = json.load(f)
+                except: pass
+        local_info[filename] = info_data[filename]
+        with open(local_info_path, "w", encoding="utf-8") as f:
+            json.dump(local_info, f, indent=2, ensure_ascii=False)
+
         st.toast("✅ 发布成功！", icon="🎉")
         time.sleep(1.5)
         st.rerun()
@@ -225,7 +246,7 @@ def process_words(all_text, mode, min_len, filter_set=None):
 with st.sidebar:
     st.image("https://img.icons8.com/fluency/96/dictionary.png", width=50)
     st.markdown("### VocabMaster")
-    st.caption("v2.0 Enhanced Edition")
+    st.caption("v2.1 Stable Edition")
     st.markdown("---")
     
     menu = st.radio(
@@ -241,69 +262,223 @@ with st.sidebar:
 if menu == "⚡ 制作生词本":
     st.title("⚡ 智能生词提取工坊")
     
-    # --- 指引区域 (可折叠，保持页面整洁) ---
+    # --- 指引区域 ---
     with st.expander("📖 新手指南：如何制作一本生词本？(点击展开)", expanded=False):
         st.markdown("""
-        1.  **准备文件**：找到你想学习的字幕文件 (`.srt`) 或文章 (`.docx`, `.txt`)。
-        2.  **设置规则**：在左侧设置过滤条件，比如过滤掉太短的单词，或上传“熟词表”过滤掉你已经认识的词。
-        3.  **上传分析**：拖入文件，点击开始，系统会自动提取高频生词。
-        4.  **导出分享**：将结果下载为 ZIP，或发布到公共库分享给他人。
+        1.  **上传**：拖入字幕 (.srt) 或文档 (.docx)。
+        2.  **设置**：在左侧调整过滤规则。
+        3.  **生成**：点击“开始提取”后，下方会出现结果和下载按钮。
         """)
 
-    # 状态管理
+    # 状态管理初始化 (关键修复：保证状态存在)
     if 'result_words' not in st.session_state: st.session_state.result_words = []
+    if 'source_files_count' not in st.session_state: st.session_state.source_files_count = 0
     
-    # --- 主操作区：左右分栏 ---
+    # --- 主操作区 ---
     c_config, c_upload = st.columns([1, 2], gap="large")
     
-    # 左栏：配置 (Step 1)
+    # 左栏：配置
     with c_config:
         st.markdown('<div class="step-header">1️⃣ 设置提取规则</div>', unsafe_allow_html=True)
         with st.container(border=True):
-            st.markdown("**基础设置**")
-            nlp_mode = st.selectbox(
-                "AI 处理引擎", 
-                ["nltk (快速)", "spacy (精准)"],
-                help="NLTK 速度极快适合大文件；Spacy 语法分析更准，适合精准学习。"
-            )
+            nlp_mode = st.selectbox("AI 处理引擎", ["nltk (快速)", "spacy (精准)"])
             mode_key = "spacy" if "spacy" in nlp_mode else "nltk"
             
-            min_len = st.number_input(
-                "最短单词长度", 
-                value=3, min_value=1,
-                help="自动过滤掉长度小于此值的单词（如 a, is, to 等）。"
-            )
+            min_len = st.number_input("单词最短长度", value=3, min_value=1)
             
             st.divider()
-            
             st.markdown("**熟词过滤 (可选)**")
-            filter_file = st.file_uploader(
-                "上传熟词表 (.txt)", 
-                type=['txt'],
-                help="上传一个包含你已认识单词的txt文件（一行一个），系统将自动跳过这些词。"
-            )
+            filter_file = st.file_uploader("上传熟词表 (.txt)", type=['txt'], label_visibility="collapsed")
             filter_set = set()
             if filter_file:
                 c = filter_file.getvalue().decode("utf-8", errors='ignore')
                 filter_set = set(l.strip().lower() for l in c.splitlines() if l.strip())
                 st.caption(f"✅ 已加载 {len(filter_set)} 个熟词")
 
-    # 右栏：上传 (Step 2)
+    # 右栏：上传与执行
     with c_upload:
         st.markdown('<div class="step-header">2️⃣ 上传文件并分析</div>', unsafe_allow_html=True)
         with st.container(border=True):
-            # 引导文案
-            st.markdown("""
-            <div class="info-box">
-                支持批量上传字幕 (.srt, .ass) 或文档 (.docx, .txt)。<br>
-                系统会自动去除时间轴和格式标签。
-            </div>
-            """, unsafe_allow_html=True)
+            st.markdown("<div class='info-box'>支持 .srt, .ass, .docx, .txt 批量上传</div>", unsafe_allow_html=True)
             
             uploaded_files = st.file_uploader(
-                "拖拽文件到这里，或点击浏览", 
+                "文件上传区", 
                 type=['txt','srt','ass','vtt','docx'], 
-                accept_multiple_files=True
+                accept_multiple_files=True,
+                label_visibility="collapsed"
             )
             
-            # 操作按钮与空隙
+            st.markdown("<br>", unsafe_allow_html=True)
+            
+            # 按钮区
+            if uploaded_files:
+                if st.button("🚀 开始智能提取", type="primary", use_container_width=True):
+                    # 进度条
+                    progress_text = "正在读取文件..."
+                    my_bar = st.progress(0, text=progress_text)
+                    
+                    all_raw_text = []
+                    for idx, file in enumerate(uploaded_files):
+                        text = extract_text_from_bytes(file, file.name)
+                        all_raw_text.append(text)
+                        my_bar.progress((idx + 1) / len(uploaded_files), text=f"解析文件: {file.name}")
+                    
+                    full_text = "\n".join(all_raw_text)
+                    
+                    if full_text.strip():
+                        my_bar.progress(100, text=f"正在使用 {mode_key.upper()} 引擎清洗数据...")
+                        words = process_words(full_text, mode_key, min_len, filter_set)
+                        
+                        # 核心修复：更新 session state
+                        st.session_state.result_words = words
+                        st.session_state.source_files_count = len(uploaded_files)
+                        
+                        my_bar.empty()
+                        st.success(f"提取完成！共发现 {len(words)} 个生词。")
+                        time.sleep(0.5)
+                        st.rerun() # 强制刷新以显示结果区
+                    else:
+                        st.error("无法从文件中识别文字，请检查文件格式。")
+
+    # --- 结果展示区 (Step 3) - 移出按钮逻辑，独立渲染 ---
+    if st.session_state.result_words:
+        st.divider()
+        st.markdown('<div class="step-header">3️⃣ 结果预览与导出</div>', unsafe_allow_html=True)
+        
+        words = st.session_state.result_words
+        
+        # 结果概览栏
+        with st.container(border=True):
+            col_stat1, col_stat2, col_stat3 = st.columns(3)
+            col_stat1.metric("📚 提取生词总数", f"{len(words)}")
+            col_stat2.metric("⏱️ 建议学习天数", f"{math.ceil(len(words)/20)} 天")
+            col_stat3.metric("🔍 词汇来源", f"{st.session_state.source_files_count} 个文件")
+
+        col_preview, col_action = st.columns([1.5, 1], gap="medium")
+
+        # 左侧：列表预览
+        with col_preview:
+            st.subheader("📋 单词列表")
+            st.dataframe(
+                [{"序号": i+1, "单词": w} for i, w in enumerate(words)],
+                use_container_width=True,
+                height=400,
+                hide_index=True
+            )
+
+        # 右侧：导出操作
+        with col_action:
+            st.subheader("💾 保存方式")
+            tab1, tab2 = st.tabs(["📥 下载到本地", "☁️ 分享到云端"])
+            
+            with tab1:
+                st.caption("将单词打包为 .zip 下载")
+                chunk_size = st.number_input("拆分大小 (词/文件)", value=5000, step=1000)
+                
+                # 准备 Zip
+                zip_buffer = io.BytesIO()
+                num_files = math.ceil(len(words) / chunk_size)
+                with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+                    for i in range(num_files):
+                        s = i * chunk_size
+                        e = min(s + chunk_size, len(words))
+                        zf.writestr(f"word_list_{i+1}.txt", "\n".join(words[s:e]))
+                
+                st.download_button(
+                    "📦 点击下载 ZIP", 
+                    zip_buffer.getvalue(), 
+                    "my_vocabulary.zip", 
+                    "application/zip", 
+                    type="primary",
+                    use_container_width=True
+                )
+
+            with tab2:
+                st.caption("发布到“公共词书库”，与他人分享")
+                with st.form("pub_form"):
+                    s_name = st.text_input("文件名 (英文, .txt)", value=f"vocab_{int(time.time())}.txt")
+                    s_title = st.text_input("标题", placeholder="如：老友记第一季高频词")
+                    s_desc = st.text_area("简介", placeholder="这本词书来自于...")
+                    
+                    if st.form_submit_button("🌍 确认发布", use_container_width=True):
+                        if not s_name.endswith(".txt"):
+                            st.warning("文件名必须以 .txt 结尾")
+                        else:
+                            with st.spinner("正在上传..."):
+                                save_to_github_library(s_name, "\n".join(words), s_title, s_desc)
+
+# === 功能二: 公共词书库 ===
+elif menu == "🌍 公共词书库":
+    st.title("🌍 社区公共词书库")
+    
+    st.markdown("""
+    <div class="info-box">
+    这里汇集了大家上传的精选词书。您可以自由浏览、下载学习。<br>
+    想要分享您的词书？请前往“制作生词本”页面进行发布。
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # 搜索与过滤
+    col_search, _ = st.columns([2, 1])
+    with col_search:
+        search_q = st.text_input("🔍 搜索词书标题...", placeholder="输入关键词搜索...").lower()
+
+    # 数据加载 - 核心修复：增加容错处理
+    LIBRARY_DIR = "library"
+    INFO_FILE = "info.json"
+    
+    # 确保文件夹存在
+    if not os.path.exists(LIBRARY_DIR): 
+        os.makedirs(LIBRARY_DIR)
+    
+    book_info = {}
+    try:
+        with open(os.path.join(LIBRARY_DIR, INFO_FILE), "r", encoding="utf-8") as f:
+            book_info = json.load(f)
+    except: pass
+
+    try:
+        files = [f for f in os.listdir(LIBRARY_DIR) if f.endswith(".txt")]
+    except: files = []
+    
+    # 过滤文件
+    visible_files = []
+    for f in files:
+        meta = book_info.get(f, {})
+        t = meta.get("title", f).lower()
+        if search_q in t or search_q in f.lower():
+            visible_files.append(f)
+
+    if not visible_files:
+        st.warning("📭 暂时没有找到相关词书。如果您是第一次运行，请尝试先在“制作生词本”中上传并发布一个文件。")
+    else:
+        st.divider()
+        # 卡片网格显示
+        cols = st.columns(3)
+        for i, filename in enumerate(visible_files):
+            file_path = os.path.join(LIBRARY_DIR, filename)
+            try:
+                with open(file_path, "r", encoding="utf-8") as f: content = f.read()
+                count = len(content.splitlines())
+                meta = book_info.get(filename, {})
+                
+                title = meta.get("title", filename)
+                desc = meta.get("desc", "暂无描述")
+                date = meta.get("date", "")
+                
+                # 轮询列
+                with cols[i % 3]:
+                    with st.container(border=True):
+                        st.subheader(f"📄 {title}")
+                        st.caption(f"📅 {date} | 📝 {count} 词")
+                        st.markdown(f"<div style='height:40px;overflow:hidden;color:grey;font-size:0.9em'>{desc}</div>", unsafe_allow_html=True)
+                        st.markdown("<br>", unsafe_allow_html=True)
+                        st.download_button(
+                            "⬇️ 下载词表", 
+                            content, 
+                            filename, 
+                            "text/plain",
+                            key=f"btn_{i}",
+                            use_container_width=True
+                        )
+            except: continue
