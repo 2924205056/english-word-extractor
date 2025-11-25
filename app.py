@@ -80,6 +80,16 @@ st.markdown("""
         font-size: 0.9em;
         margin-bottom: 15px;
     }
+    
+    /* 资源链接样式 */
+    .resource-link {
+        text-decoration: none;
+        color: #0366d6;
+        font-weight: 500;
+    }
+    .resource-link:hover {
+        text-decoration: underline;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -246,7 +256,7 @@ def process_words(all_text, mode, min_len, filter_set=None):
 with st.sidebar:
     st.image("https://img.icons8.com/fluency/96/dictionary.png", width=50)
     st.markdown("### VocabMaster")
-    st.caption("v2.1 Stable Edition")
+    st.caption("v2.2 Resource Edition")
     st.markdown("---")
     
     menu = st.radio(
@@ -262,15 +272,36 @@ with st.sidebar:
 if menu == "⚡ 制作生词本":
     st.title("⚡ 智能生词提取工坊")
     
-    # --- 指引区域 ---
-    with st.expander("📖 新手指南：如何制作一本生词本？(点击展开)", expanded=False):
-        st.markdown("""
-        1.  **上传**：拖入字幕 (.srt) 或文档 (.docx)。
-        2.  **设置**：在左侧调整过滤规则。
-        3.  **生成**：点击“开始提取”后，下方会出现结果和下载按钮。
-        """)
+    # --- 指引区域 & 资源推荐 (新增) ---
+    with st.expander("📖 新手指南 & 字幕资源推荐 (点击展开)", expanded=False):
+        
+        tab_guide, tab_resources = st.tabs(["💡 如何使用", "🔗 没字幕？去哪找"])
+        
+        with tab_guide:
+            st.markdown("""
+            1.  **准备文件**：找到你想学习的字幕文件 (`.srt`, `.ass`) 或英文文档。
+            2.  **设置规则**：在左侧设置过滤条件，建议上传“熟词表”以过滤掉简单词。
+            3.  **上传分析**：拖入文件，系统自动提取高频生词。
+            4.  **导出分享**：生成结果后，可下载 ZIP 或发布到公共库。
+            """)
+            
+        with tab_resources:
+            st.markdown("这里整理了常用的字幕下载站点，方便您寻找学习素材：")
+            c_res1, c_res2 = st.columns(2)
+            with c_res1:
+                st.markdown("🎯 **[伪射手网 (Assrt)](https://assrt.net/)**")
+                st.caption("老牌字幕站，资源极其丰富，支持中英双语。")
+                
+                st.markdown("📺 **[字幕库 (Zimuku)](http://zimuku.org/)**")
+                st.caption("美剧、日剧更新速度快，搜索体验好。")
+            with c_res2:
+                st.markdown("💎 **[SubHD](https://subhd.tv/)**")
+                st.caption("界面清爽，高清影视字幕的首选之地。")
+                
+                st.markdown("🌎 **[OpenSubtitles](https://www.opensubtitles.org/)**")
+                st.caption("全球最大的字幕库，寻找纯英文字幕的最佳选择。")
 
-    # 状态管理初始化 (关键修复：保证状态存在)
+    # 状态管理初始化
     if 'result_words' not in st.session_state: st.session_state.result_words = []
     if 'source_files_count' not in st.session_state: st.session_state.source_files_count = 0
     
@@ -329,18 +360,18 @@ if menu == "⚡ 制作生词本":
                         my_bar.progress(100, text=f"正在使用 {mode_key.upper()} 引擎清洗数据...")
                         words = process_words(full_text, mode_key, min_len, filter_set)
                         
-                        # 核心修复：更新 session state
+                        # 更新 Session State
                         st.session_state.result_words = words
                         st.session_state.source_files_count = len(uploaded_files)
                         
                         my_bar.empty()
                         st.success(f"提取完成！共发现 {len(words)} 个生词。")
                         time.sleep(0.5)
-                        st.rerun() # 强制刷新以显示结果区
+                        st.rerun() # 强制刷新显示结果
                     else:
                         st.error("无法从文件中识别文字，请检查文件格式。")
 
-    # --- 结果展示区 (Step 3) - 移出按钮逻辑，独立渲染 ---
+    # --- 结果展示区 (Step 3) ---
     if st.session_state.result_words:
         st.divider()
         st.markdown('<div class="step-header">3️⃣ 结果预览与导出</div>', unsafe_allow_html=True)
@@ -423,7 +454,7 @@ elif menu == "🌍 公共词书库":
     with col_search:
         search_q = st.text_input("🔍 搜索词书标题...", placeholder="输入关键词搜索...").lower()
 
-    # 数据加载 - 核心修复：增加容错处理
+    # 数据加载
     LIBRARY_DIR = "library"
     INFO_FILE = "info.json"
     
