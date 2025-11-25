@@ -8,6 +8,7 @@ import os
 import json
 import random
 import time
+import pandas as pd
 from github import Github
 
 # NLP Imports
@@ -84,6 +85,12 @@ st.markdown("""
     /* 链接样式 */
     a { color: #0366d6; text-decoration: none; }
     a:hover { text-decoration: underline; }
+    
+    /* Code block 样式微调，让复制框更像文本域 */
+    .stCodeBlock {
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -157,7 +164,7 @@ def save_to_github_library(filename, content, title, desc):
         else:
             repo.create_file(info_path, "Create info.json", new_info_str)
             
-        # 3. 本地同步（确保立即可见）
+        # 3. 本地同步
         local_lib = "library"
         if not os.path.exists(local_lib): os.makedirs(local_lib)
         
@@ -248,7 +255,7 @@ def process_words(all_text, mode, min_len, filter_set=None):
 with st.sidebar:
     st.image("https://img.icons8.com/fluency/96/dictionary.png", width=50)
     st.markdown("### VocabMaster")
-    st.caption("v4.0 Shanbay Edition")
+    st.caption("v5.0 Final Edition")
     st.markdown("---")
     
     menu = st.radio(
@@ -278,7 +285,7 @@ if menu == "⚡ 制作生词本":
                 <li><b>找素材</b>：从右侧标签页下载字幕 (.srt) 或 名著 (.txt)。</li>
                 <li><b>定规则</b>：在左侧栏设置“最短词长”，建议上传“熟词表”屏蔽简单词。</li>
                 <li><b>传文件</b>：将文件拖入下方上传区，点击“开始智能提取”。</li>
-                <li><b>存词本</b>：下载 TXT，点击下方的<b>“导入扇贝”</b>按钮，开始背诵。</li>
+                <li><b>存词本</b>：生成结果后，支持一键复制，直接跳转扇贝网批量导入。</li>
             </ol>
             </div>
             """, unsafe_allow_html=True)
@@ -387,7 +394,6 @@ if menu == "⚡ 制作生词本":
                         my_bar.progress(100, text=f"正在使用 {mode_key.upper()} 引擎清洗数据...")
                         words = process_words(full_text, mode_key, min_len, filter_set)
                         
-                        # 保存 State
                         st.session_state.result_words = words
                         st.session_state.source_files_count = len(uploaded_files)
                         
@@ -414,25 +420,53 @@ if menu == "⚡ 制作生词本":
 
         col_preview, col_action = st.columns([1.5, 1], gap="medium")
 
-        # 左侧：列表预览
+        # 左侧：列表预览 (优化逻辑)
         with col_preview:
-            st.subheader("📋 单词列表")
+            st.subheader("📋 单词预览")
+            # 构建 DataFrame 优化展示
+            df_words = pd.DataFrame(words, columns=["Vocabulary"])
+            df_words.index += 1 # 索引从1开始
+            
             st.dataframe(
-                [{"序号": i+1, "单词": w} for i, w in enumerate(words)],
+                df_words,
                 use_container_width=True,
                 height=450,
-                hide_index=True
+                column_config={
+                    "Vocabulary": st.column_config.TextColumn(
+                        "提取结果 (可搜索)",
+                        help="双击单元格可复制单个单词"
+                    )
+                }
             )
 
-        # 右侧：导出与扇贝导入 (新增核心功能)
+        # 右侧：复制/导出/导入 (新增一键复制)
         with col_action:
             st.subheader("💾 保存与学习")
             tab1, tab2 = st.tabs(["📥 本地 & 扇贝", "☁️ 公共库发布"])
             
             with tab1:
-                # 1. 下载功能
-                st.markdown("**1. 下载词表**")
-                chunk_size = st.number_input("拆分大小", value=5000, step=1000)
+                # 1. 一键复制 (核心优化：使用 st.code 原生支持复制)
+                st.markdown("##### 1. 一键复制 (推荐)")
+                st.caption("点击右上角的 **📄 Copy** 按钮，即可将所有单词复制到剪贴板，随后可去扇贝粘贴。")
+                st.code("\n".join(words), language="text")
+
+                st.markdown("---")
+
+                # 2. 扇贝导入功能 (更新链接)
+                st.markdown("##### 2. 导入扇贝 (Shanbay)")
+                st.link_button(
+                    "🚀 跳转扇贝网 (Web版)", 
+                    "https://web.shanbay.com/wordsweb/#/books", 
+                    help="点击跳转，登录后选择'上传词书'，粘贴刚刚复制的单词。",
+                    type="primary", 
+                    use_container_width=True
+                )
+                
+                st.markdown("---")
+
+                # 3. 下载功能
+                st.markdown("##### 3. 下载文件")
+                chunk_size = st.number_input("文件拆分大小", value=5000, step=1000)
                 zip_buffer = io.BytesIO()
                 num_files = math.ceil(len(words) / chunk_size)
                 with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
@@ -442,24 +476,10 @@ if menu == "⚡ 制作生词本":
                         zf.writestr(f"word_list_{i+1}.txt", "\n".join(words[s:e]))
                 
                 st.download_button(
-                    "📦 下载 TXT/ZIP", 
+                    "📦 下载 ZIP 压缩包", 
                     zip_buffer.getvalue(), 
                     "my_vocabulary.zip", 
                     "application/zip", 
-                    type="secondary",
-                    use_container_width=True
-                )
-                
-                st.markdown("---")
-                
-                # 2. 扇贝导入功能 (新增)
-                st.markdown("**2. 导入扇贝 (Shanbay)**")
-                st.info("💡 **操作指南**：\n1. 复制左侧表格内容，或打开下载的 .txt 文件。\n2. 点击下方按钮进入扇贝“批量添加”。\n3. 粘贴并提交，即可在 APP 中背诵。")
-                
-                st.link_button(
-                    "🚀 跳转扇贝网 (批量导入)", 
-                    "https://www.shanbay.com/bdc/vocabulary/add/batch/", 
-                    type="primary", 
                     use_container_width=True
                 )
 
@@ -484,7 +504,7 @@ elif menu == "🌍 公共词书库":
     
     st.markdown("""
     <div class="info-box">
-    汇集社区精选词书。下载后，同样可以通过<b>“导入扇贝”</b>功能进行学习。
+    汇集社区精选词书。您可以下载后，通过<b>“一键复制”</b>功能导入扇贝网学习。
     </div>
     """, unsafe_allow_html=True)
     
@@ -537,6 +557,7 @@ elif menu == "🌍 公共词书库":
                         st.markdown(f"<div style='height:40px;overflow:hidden;color:grey;font-size:0.9em'>{desc}</div>", unsafe_allow_html=True)
                         st.markdown("<br>", unsafe_allow_html=True)
                         
+                        # 下载和导入按钮
                         c_dl, c_imp = st.columns(2)
                         with c_dl:
                             st.download_button(
@@ -544,11 +565,15 @@ elif menu == "🌍 公共词书库":
                                 key=f"dl_{i}", use_container_width=True
                             )
                         with c_imp:
-                            # 增加每个卡片的直接跳转功能
                             st.link_button(
                                 "🚀 导入", 
-                                "https://www.shanbay.com/bdc/vocabulary/add/batch/", 
-                                help="跳转到扇贝网导入页面",
+                                "https://web.shanbay.com/wordsweb/#/books", 
+                                help="跳转扇贝网页版导入",
                                 use_container_width=True
                             )
+                        
+                        # 增加一个折叠的复制区域，方便直接复制
+                        with st.expander("📋 展开复制内容"):
+                             st.code(content, language="text")
+
             except: continue
