@@ -35,7 +35,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# 注入 CSS：增加呼吸感，优化阅读体验，并修复代码块过长问题
+# 注入 CSS：核心优化在于 .stCodeBlock 的限高
 st.markdown("""
 <style>
     /* 全局背景色微调 */
@@ -71,27 +71,25 @@ st.markdown("""
     }
     div.stButton > button:hover { transform: translateY(-1px); }
     
-    /* 提示框样式 */
-    .info-box {
-        background-color: #eff6ff;
-        border-left: 4px solid #3b82f6;
-        padding: 10px 15px;
-        border-radius: 4px;
-        color: #1e3a8a;
-        font-size: 0.9em;
-        margin-bottom: 15px;
-    }
-    
     /* 链接样式 */
     a { color: #0366d6; text-decoration: none; }
     a:hover { text-decoration: underline; }
     
-    /* 核心优化：限制 st.code 代码块的最大高度，防止刷屏 */
+    /* 🔥 核心优化：代码块样式 🔥 
+       强制限制高度，添加滚动条，去除多余边框，使其看起来像一个文本域 
+    */
     .stCodeBlock {
-        max-height: 200px !important; /* 强制限高 */
-        overflow-y: auto !important;  /* 允许内部滚动 */
-        border: 1px solid #e0e0e0;
+        max-height: 250px !important; /* 限制展示高度 */
+        overflow-y: auto !important;  /* 内部滚动 */
+        border: 1px solid #e2e8f0;
         border-radius: 8px;
+        background-color: #f8fafc;
+    }
+    
+    /* 调整代码块内的字体大小 */
+    code {
+        font-family: 'Consolas', 'Monaco', monospace !important;
+        font-size: 0.9em !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -257,7 +255,7 @@ def process_words(all_text, mode, min_len, filter_set=None):
 with st.sidebar:
     st.image("https://img.icons8.com/fluency/96/dictionary.png", width=50)
     st.markdown("### VocabMaster")
-    st.caption("v6.0 Optimized Edition")
+    st.caption("v7.0 Simplified Edition")
     st.markdown("---")
     
     menu = st.radio(
@@ -278,64 +276,45 @@ if menu == "⚡ 制作生词本":
         
         tab_guide, tab_subs, tab_books, tab_learn = st.tabs(["💡 操作指引", "🎬 影视字幕", "📚 名著 & 阅读", "🎧 名师 & 听力"])
         
-        # Tab 1: 操作指引
         with tab_guide:
             st.markdown("""
             <div style="padding: 10px; background: #f8f9fa; border-radius: 8px;">
             <h4 style="margin-top:0">🚀 快速上手流程</h4>
             <ol>
-                <li><b>找素材</b>：从右侧标签页下载字幕 (.srt) 或 名著 (.txt)。</li>
-                <li><b>定规则</b>：在左侧栏设置“最短词长”，建议上传“熟词表”屏蔽简单词。</li>
-                <li><b>传文件</b>：将文件拖入下方上传区，点击“开始智能提取”。</li>
-                <li><b>存词本</b>：生成结果后，支持一键复制，直接跳转扇贝网批量导入。</li>
+                <li><b>定规则</b>：设置提取规则，包括文件拆分大小。</li>
+                <li><b>传文件</b>：将字幕或文档拖入上传区，点击提取。</li>
+                <li><b>去背诵</b>：<b>一键复制</b>结果，跳转扇贝网批量导入；或下载 ZIP 包。</li>
             </ol>
             </div>
             """, unsafe_allow_html=True)
             
-        # Tab 2: 字幕资源
         with tab_subs:
             st.info("💡 提示：下载 .srt 或 .ass 格式的字幕文件，直接拖入本工具即可提取生词。")
             c1, c2 = st.columns(2)
             with c1:
-                st.markdown("🎯 **[伪射手网 (Assrt)](https://assrt.net/)**\n\n*老牌字幕站，资源极其丰富，支持中英双语。*")
-                st.markdown("📺 **[字幕库 (Zimuku)](http://zimuku.org/)**\n\n*美剧、日剧更新速度快，搜索体验好。*")
+                st.markdown("🎯 **[伪射手网 (Assrt)](https://assrt.net/)**")
+                st.markdown("📺 **[字幕库 (Zimuku)](http://zimuku.org/)**")
             with c2:
-                st.markdown("💎 **[SubHD](https://subhd.tv/)**\n\n*界面清爽，高清影视字幕的首选之地。*")
-                st.markdown("🌎 **[OpenSubtitles](https://www.opensubtitles.org/)**\n\n*全球最大的字幕库，寻找纯英文字幕的最佳选择。*")
+                st.markdown("💎 **[SubHD](https://subhd.tv/)**")
+                st.markdown("🌎 **[OpenSubtitles](https://www.opensubtitles.org/)**")
 
-        # Tab 3: 名著 & 阅读
         with tab_books:
-            st.success("📚 这里的资源大多提供 .txt 格式，最适合本工具进行分析！")
             c1, c2 = st.columns(2)
             with c1:
                 st.markdown("🏛️ **[Project Gutenberg](https://www.gutenberg.org/)**")
-                st.caption("古腾堡计划，拥有 70,000+ 免费电子书（公版名著），提供纯文本 .txt 下载，**强烈推荐**。")
-                
                 st.markdown("📖 **[Standard Ebooks](https://standardebooks.org/)**")
-                st.caption("排版精美的公版书，质量极高，适合精读。")
             with c2:
-                st.markdown("📰 **[The Economist (经济学人)](https://www.economist.com/)**")
-                st.caption("虽然是付费源，但其文章是学习高级词汇和写作的标杆。")
-                
-                st.markdown("🐲 **[China Daily (双语版)](https://language.chinadaily.com.cn/)**")
-                st.caption("更适合中国读者的双语新闻，适合提取时政类词汇。")
+                st.markdown("📰 **[The Economist](https://www.economist.com/)**")
+                st.markdown("🐲 **[China Daily](https://language.chinadaily.com.cn/)**")
 
-        # Tab 4: 名师 & 听力
         with tab_learn:
-            st.warning("🎧 技巧：下载演讲稿 (Transcript) 放入本工具，学完单词再去听，效果翻倍。")
             c1, c2 = st.columns(2)
             with c1:
                 st.markdown("🔴 **[TED Talks](https://www.ted.com/)**")
-                st.caption("思想的盛宴。每个视频都自带 **Transcript (文稿)**，直接复制粘贴成 txt 即可提取。")
-                
                 st.markdown("🇬🇧 **[BBC Learning English](https://www.bbc.co.uk/learningenglish/)**")
-                st.caption("经典的 6 Minute English，拥有完整的 pdf/text 文稿支持。")
             with c2:
                 st.markdown("🎓 **[Coursera](https://www.coursera.org/)**")
-                st.caption("全球顶级大学课程。下载课程字幕进行分析，是掌握专业英语（学术/编程/商务）的捷径。")
-                
                 st.markdown("🇺🇸 **[NPR News](https://www.npr.org/)**")
-                st.caption("美国国家公共电台，美音磨耳朵的神器，多数新闻提供文字版。")
 
     # 状态初始化
     if 'result_words' not in st.session_state: st.session_state.result_words = []
@@ -344,7 +323,7 @@ if menu == "⚡ 制作生词本":
     # --- B. 主操作区 ---
     c_config, c_upload = st.columns([1, 2], gap="large")
     
-    # 左栏：配置
+    # 左栏：配置 (单词切分已移动至此)
     with c_config:
         st.markdown('<div class="step-header">1️⃣ 设置提取规则</div>', unsafe_allow_html=True)
         with st.container(border=True):
@@ -353,9 +332,17 @@ if menu == "⚡ 制作生词本":
             
             min_len = st.number_input("单词最短长度", value=3, min_value=1)
             
-            st.divider()
-            st.markdown("**熟词过滤 (可选)**")
-            filter_file = st.file_uploader("上传熟词表 (.txt)", type=['txt'], label_visibility="collapsed")
+            # 移动到这里的“单词切分”设置
+            st.markdown("---")
+            chunk_size = st.number_input(
+                "📥 文件拆分大小 (词/文件)", 
+                value=5000, 
+                step=1000,
+                help="当下载 ZIP 时，会将单词表切割成多个文件，方便分批导入背单词软件。"
+            )
+            
+            st.markdown("---")
+            filter_file = st.file_uploader("屏蔽词表 (.txt)", type=['txt'], label_visibility="visible", help="上传您已认识的单词，系统将自动过滤。")
             filter_set = set()
             if filter_file:
                 c = filter_file.getvalue().decode("utf-8", errors='ignore')
@@ -380,7 +367,6 @@ if menu == "⚡ 制作生词本":
             # 按钮区
             if uploaded_files:
                 if st.button("🚀 开始智能提取", type="primary", use_container_width=True):
-                    # 进度条
                     progress_text = "正在读取文件..."
                     my_bar = st.progress(0, text=progress_text)
                     
@@ -406,7 +392,7 @@ if menu == "⚡ 制作生词本":
                     else:
                         st.error("无法从文件中识别文字，请检查文件格式。")
 
-    # --- C. 结果展示区 ---
+    # --- C. 结果展示区 (布局重构) ---
     if st.session_state.result_words:
         st.divider()
         st.markdown('<div class="step-header">3️⃣ 结果预览与导入</div>', unsafe_allow_html=True)
@@ -420,85 +406,61 @@ if menu == "⚡ 制作生词本":
             col_stat2.metric("⏱️ 建议学习天数", f"{math.ceil(len(words)/20)} 天")
             col_stat3.metric("🔍 词汇来源", f"{st.session_state.source_files_count} 个文件")
 
-        col_preview, col_action = st.columns([1.5, 1], gap="medium")
+        # 布局改为：左侧(复制区) + 右侧(操作按钮)
+        col_copy, col_actions = st.columns([2, 1], gap="large")
 
-        # 左侧：列表预览
-        with col_preview:
-            st.subheader("📋 单词预览")
-            # 构建 DataFrame 优化展示
-            df_words = pd.DataFrame(words, columns=["Vocabulary"])
-            df_words.index += 1 
+        # 左侧：直观的一键复制区
+        with col_copy:
+            st.markdown("##### 📋 单词列表 (一键复制)")
+            st.caption("点击右上角 **Copy** 按钮，直接粘贴到扇贝网。")
+            # 直接展示，依靠 CSS .stCodeBlock max-height: 250px 限制高度，带滚动条
+            st.code("\n".join(words), language="text")
+
+        # 右侧：操作按钮群
+        with col_actions:
+            st.markdown("##### 🚀 快速操作")
             
-            st.dataframe(
-                df_words,
-                use_container_width=True,
-                height=450,
-                column_config={
-                    "Vocabulary": st.column_config.TextColumn("提取结果")
-                }
+            # 1. 扇贝导入
+            st.link_button(
+                "🦁 导入扇贝网 (Web端)", 
+                "https://web.shanbay.com/wordsweb/#/books", 
+                help="点击跳转，登录后选择'上传词书'，粘贴左侧复制的单词。",
+                type="primary", 
+                use_container_width=True
             )
-
-        # 右侧：复制/导出/导入 (优化：折叠式复制 + 限高)
-        with col_action:
-            st.subheader("💾 保存与学习")
-            tab1, tab2 = st.tabs(["📥 本地 & 扇贝", "☁️ 公共库发布"])
             
-            with tab1:
-                # 1. 一键复制 (优化版：折叠+限高)
-                st.markdown("##### 1. 一键复制 (推荐)")
-                st.caption(f"共 **{len(words)}** 个单词。点击下方展开后，使用右上角的 **Copy** 按钮即可全选复制。")
-                
-                # 使用 expander 收纳内容，CSS 限制高度
-                with st.expander("📋 点击展开完整词表 (Click to Copy)", expanded=False):
-                    st.code("\n".join(words), language="text")
+            st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
 
-                st.markdown("---")
-
-                # 2. 扇贝导入功能 (更新链接)
-                st.markdown("##### 2. 导入扇贝 (Shanbay)")
-                st.link_button(
-                    "🚀 跳转扇贝网 (Web版)", 
-                    "https://web.shanbay.com/wordsweb/#/books", 
-                    help="点击跳转，登录后选择'上传词书'，粘贴刚刚复制的单词。",
-                    type="primary", 
-                    use_container_width=True
-                )
-                
-                st.markdown("---")
-
-                # 3. 下载功能
-                st.markdown("##### 3. 下载文件")
-                chunk_size = st.number_input("文件拆分大小", value=5000, step=1000)
-                zip_buffer = io.BytesIO()
-                num_files = math.ceil(len(words) / chunk_size)
-                with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
-                    for i in range(num_files):
-                        s = i * chunk_size
-                        e = min(s + chunk_size, len(words))
-                        zf.writestr(f"word_list_{i+1}.txt", "\n".join(words[s:e]))
-                
-                st.download_button(
-                    "📦 下载 ZIP 压缩包", 
-                    zip_buffer.getvalue(), 
-                    "my_vocabulary.zip", 
-                    "application/zip", 
-                    use_container_width=True
-                )
-
-            with tab2:
-                st.markdown("**发布到公共库**")
-                st.caption("分享您的词书给所有人。")
+            # 2. 下载 ZIP (使用 Step 1 设置的 chunk_size)
+            zip_buffer = io.BytesIO()
+            num_files = math.ceil(len(words) / chunk_size)
+            with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+                for i in range(num_files):
+                    s = i * chunk_size
+                    e = min(s + chunk_size, len(words))
+                    zf.writestr(f"word_list_{i+1}.txt", "\n".join(words[s:e]))
+            
+            st.download_button(
+                f"📦 下载 ZIP ({num_files}个文件)", 
+                zip_buffer.getvalue(), 
+                "my_vocabulary.zip", 
+                "application/zip", 
+                use_container_width=True
+            )
+            
+            st.markdown("---")
+            
+            # 3. 发布到公共库
+            with st.expander("☁️ 发布到公共库", expanded=False):
                 with st.form("pub_form"):
-                    s_name = st.text_input("文件名 (英文, .txt)", value=f"vocab_{int(time.time())}.txt")
-                    s_title = st.text_input("标题", placeholder="如：老友记第一季高频词")
-                    s_desc = st.text_area("简介", placeholder="这本词书来自于...")
-                    
-                    if st.form_submit_button("🌍 确认发布", use_container_width=True):
+                    s_name = st.text_input("文件名 (英文)", value=f"vocab_{int(time.time())}.txt")
+                    s_title = st.text_input("标题", placeholder="如：老友记第一季")
+                    s_desc = st.text_area("简介")
+                    if st.form_submit_button("发布"):
                         if not s_name.endswith(".txt"):
-                            st.warning("文件名必须以 .txt 结尾")
+                            st.warning("需 .txt 结尾")
                         else:
-                            with st.spinner("正在上传..."):
-                                save_to_github_library(s_name, "\n".join(words), s_title, s_desc)
+                            save_to_github_library(s_name, "\n".join(words), s_title, s_desc)
 
 # === 功能二: 公共词书库 ===
 elif menu == "🌍 公共词书库":
@@ -506,16 +468,14 @@ elif menu == "🌍 公共词书库":
     
     st.markdown("""
     <div class="info-box">
-    汇集社区精选词书。您可以下载后，通过<b>“一键复制”</b>功能导入扇贝网学习。
+    汇集社区精选词书。<b>直接点击 Copy</b>，即可去扇贝网导入学习。
     </div>
     """, unsafe_allow_html=True)
     
-    # 搜索
     col_search, _ = st.columns([2, 1])
     with col_search:
-        search_q = st.text_input("🔍 搜索词书标题...", placeholder="输入关键词搜索...").lower()
+        search_q = st.text_input("🔍 搜索词书...", placeholder="输入关键词...").lower()
 
-    # 数据加载
     LIBRARY_DIR = "library"
     INFO_FILE = "info.json"
     if not os.path.exists(LIBRARY_DIR): os.makedirs(LIBRARY_DIR)
@@ -538,7 +498,7 @@ elif menu == "🌍 公共词书库":
             visible_files.append(f)
 
     if not visible_files:
-        st.warning("📭 暂无公共词书，去上传一本吧！")
+        st.warning("📭 暂无公共词书。")
     else:
         st.divider()
         cols = st.columns(3)
@@ -550,32 +510,25 @@ elif menu == "🌍 公共词书库":
                 meta = book_info.get(filename, {})
                 title = meta.get("title", filename)
                 desc = meta.get("desc", "暂无描述")
-                date = meta.get("date", "")
                 
                 with cols[i % 3]:
                     with st.container(border=True):
                         st.subheader(f"📄 {title}")
-                        st.caption(f"📅 {date} | 📝 {count} 词")
-                        st.markdown(f"<div style='height:40px;overflow:hidden;color:grey;font-size:0.9em'>{desc}</div>", unsafe_allow_html=True)
-                        st.markdown("<br>", unsafe_allow_html=True)
+                        st.caption(f"📝 {count} 词")
                         
-                        # 下载和导入按钮
-                        c_dl, c_imp = st.columns(2)
+                        # 优化：直接展示代码块，无需折叠，CSS 限制高度
+                        st.code(content, language="text")
+                        
+                        c_imp, c_dl = st.columns(2)
+                        with c_imp:
+                            st.link_button(
+                                "🚀 导入扇贝", 
+                                "https://web.shanbay.com/wordsweb/#/books", 
+                                use_container_width=True
+                            )
                         with c_dl:
                             st.download_button(
                                 "⬇️ 下载", content, filename, "text/plain",
                                 key=f"dl_{i}", use_container_width=True
                             )
-                        with c_imp:
-                            st.link_button(
-                                "🚀 导入", 
-                                "https://web.shanbay.com/wordsweb/#/books", 
-                                help="跳转扇贝网页版导入",
-                                use_container_width=True
-                            )
-                        
-                        # 优化：折叠式复制 + CSS 限高
-                        with st.expander("📋 展开以复制 (Copy)"):
-                             st.code(content, language="text")
-
             except: continue
