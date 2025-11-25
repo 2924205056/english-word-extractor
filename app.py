@@ -9,6 +9,7 @@ import json
 import random
 import time
 import pandas as pd
+import streamlit.components.v1 as components # 引入组件库用于自定义按钮
 from github import Github
 
 # NLP Imports
@@ -35,66 +36,112 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# 注入 CSS：核心优化在于 .stCodeBlock 的限高
+# 注入 CSS
 st.markdown("""
 <style>
-    /* 全局背景色微调 */
     .stApp { background-color: #fcfdfe; }
-    
-    /* 标题增强 */
     h1, h2, h3 { font-family: 'Segoe UI', sans-serif; color: #2c3e50; }
-    
-    /* 步骤标题样式 */
-    .step-header {
-        font-size: 1.1rem;
-        font-weight: 700;
-        color: #4f46e5;
-        margin-bottom: 10px;
-        display: flex;
-        align-items: center;
-    }
-    
-    /* 卡片容器优化 */
-    [data-testid="stExpander"], [data-testid="stForm"] {
-        background: white;
-        border-radius: 12px;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-        border: 1px solid #e5e7eb;
-    }
-    
-    /* 按钮优化 */
-    div.stButton > button {
-        border-radius: 8px;
-        padding: 0.5rem 1rem;
-        font-weight: 600;
-        transition: all 0.2s;
-    }
+    .step-header { font-size: 1.1rem; font-weight: 700; color: #4f46e5; margin-bottom: 10px; display: flex; align-items: center; }
+    [data-testid="stExpander"], [data-testid="stForm"] { background: white; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); border: 1px solid #e5e7eb; }
+    div.stButton > button { border-radius: 8px; padding: 0.5rem 1rem; font-weight: 600; transition: all 0.2s; }
     div.stButton > button:hover { transform: translateY(-1px); }
-    
-    /* 链接样式 */
+    .info-box { background-color: #eff6ff; border-left: 4px solid #3b82f6; padding: 10px 15px; border-radius: 4px; color: #1e3a8a; font-size: 0.9em; margin-bottom: 15px; }
     a { color: #0366d6; text-decoration: none; }
     a:hover { text-decoration: underline; }
     
-    /* 🔥 核心优化：代码块样式 🔥 
-       强制限制高度，添加滚动条，去除多余边框，使其看起来像一个文本域 
-    */
+    /* 代码块样式：作为备用展示，稍微淡化 */
     .stCodeBlock {
-        max-height: 250px !important; /* 限制展示高度 */
-        overflow-y: auto !important;  /* 内部滚动 */
+        max-height: 200px !important;
+        overflow-y: auto !important;
         border: 1px solid #e2e8f0;
         border-radius: 8px;
         background-color: #f8fafc;
-    }
-    
-    /* 调整代码块内的字体大小 */
-    code {
-        font-family: 'Consolas', 'Monaco', monospace !important;
-        font-size: 0.9em !important;
+        opacity: 0.9;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# ------------------ 2. 缓存资源加载 ------------------
+# ------------------ 2. 工具函数：自定义复制按钮 ------------------
+def render_copy_button(text_content, unique_key):
+    """
+    渲染一个醒目的自定义 HTML/JS 复制按钮
+    """
+    # 安全转义文本内容
+    safe_text = json.dumps(text_content)
+    
+    html_code = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+    <style>
+        .copy-btn {{
+            width: 100%;
+            padding: 12px;
+            background-color: #4f46e5; /* 醒目蓝紫色 */
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-family: 'Segoe UI', sans-serif;
+            font-weight: 600;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 6px rgba(79, 70, 229, 0.2);
+        }}
+        .copy-btn:hover {{
+            background-color: #4338ca;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 8px rgba(79, 70, 229, 0.3);
+        }}
+        .copy-btn:active {{
+            transform: translateY(0);
+        }}
+        .icon {{ margin-right: 8px; font-size: 18px; }}
+    </style>
+    </head>
+    <body>
+        <button id="btn_{unique_key}" class="copy-btn" onclick="copyText()">
+            <span class="icon">📋</span> 点击一键复制所有单词 (Copy All)
+        </button>
+
+        <script>
+        function copyText() {{
+            const text = {safe_text};
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            document.body.appendChild(textArea);
+            textArea.select();
+            try {{
+                document.execCommand('copy');
+                const btn = document.getElementById("btn_{unique_key}");
+                const originalText = btn.innerHTML;
+                
+                // 成功反馈
+                btn.innerHTML = '<span class="icon">✅</span> 复制成功！(Copied)';
+                btn.style.backgroundColor = "#10b981"; // 绿色
+                
+                // 2秒后恢复
+                setTimeout(() => {{
+                    btn.innerHTML = originalText;
+                    btn.style.backgroundColor = "#4f46e5"; // 恢复蓝紫色
+                }}, 2000);
+            }} catch (err) {{
+                console.error('Fallback: Oops, unable to copy', err);
+            }}
+            document.body.removeChild(textArea);
+        }}
+        </script>
+    </body>
+    </html>
+    """
+    # 渲染 HTML 组件，设定固定高度
+    components.html(html_code, height=60)
+
+
+# ------------------ 3. 缓存资源加载 ------------------
 @st.cache_resource
 def download_nltk_resources():
     resources = ["punkt", "averaged_perceptron_tagger", "averaged_perceptron_tagger_eng", "wordnet", "omw-1.4", "stopwords"]
@@ -118,7 +165,7 @@ def load_spacy_model():
 download_nltk_resources()
 nlp_spacy = load_spacy_model()
 
-# ------------------ 3. 核心逻辑函数 ------------------
+# ------------------ 4. 核心逻辑函数 ------------------
 def save_to_github_library(filename, content, title, desc):
     """GitHub 上传逻辑"""
     try:
@@ -136,14 +183,12 @@ def save_to_github_library(filename, content, title, desc):
         library_path = f"library/{filename}"
         info_path = "library/info.json"
         
-        # 1. 上传/更新词书文件
         try:
             contents = repo.get_contents(library_path)
             repo.update_file(library_path, f"Update {filename}", content, contents.sha)
         except:
             repo.create_file(library_path, f"Create {filename}", content)
 
-        # 2. 更新 info.json
         try:
             info_contents = repo.get_contents(info_path)
             info_data = json.loads(info_contents.decoded_content.decode("utf-8"))
@@ -164,10 +209,8 @@ def save_to_github_library(filename, content, title, desc):
         else:
             repo.create_file(info_path, "Create info.json", new_info_str)
             
-        # 3. 本地同步
         local_lib = "library"
         if not os.path.exists(local_lib): os.makedirs(local_lib)
-        
         with open(os.path.join(local_lib, filename), "w", encoding="utf-8") as f:
             f.write(content)
         
@@ -249,13 +292,13 @@ def process_words(all_text, mode, min_len, filter_set=None):
             final_words.append(w)
     return final_words
 
-# ------------------ 4. UI 布局设计 ------------------
+# ------------------ 5. UI 布局设计 ------------------
 
 # === 侧边栏 ===
 with st.sidebar:
     st.image("https://img.icons8.com/fluency/96/dictionary.png", width=50)
     st.markdown("### VocabMaster")
-    st.caption("v7.0 Simplified Edition")
+    st.caption("v8.0 Pro Copy Edition")
     st.markdown("---")
     
     menu = st.radio(
@@ -271,9 +314,8 @@ with st.sidebar:
 if menu == "⚡ 制作生词本":
     st.title("⚡ 智能生词提取工坊")
     
-    # --- A. 指引区域 & 资源导航 ---
+    # --- 指引区域 ---
     with st.expander("📖 新手指南 & 宝藏资源导航 (点击展开)", expanded=False):
-        
         tab_guide, tab_subs, tab_books, tab_learn = st.tabs(["💡 操作指引", "🎬 影视字幕", "📚 名著 & 阅读", "🎧 名师 & 听力"])
         
         with tab_guide:
@@ -283,7 +325,7 @@ if menu == "⚡ 制作生词本":
             <ol>
                 <li><b>定规则</b>：设置提取规则，包括文件拆分大小。</li>
                 <li><b>传文件</b>：将字幕或文档拖入上传区，点击提取。</li>
-                <li><b>去背诵</b>：<b>一键复制</b>结果，跳转扇贝网批量导入；或下载 ZIP 包。</li>
+                <li><b>去背诵</b>：使用<b>醒目的蓝色按钮</b>一键复制，跳转扇贝网批量导入。</li>
             </ol>
             </div>
             """, unsafe_allow_html=True)
@@ -320,10 +362,9 @@ if menu == "⚡ 制作生词本":
     if 'result_words' not in st.session_state: st.session_state.result_words = []
     if 'source_files_count' not in st.session_state: st.session_state.source_files_count = 0
     
-    # --- B. 主操作区 ---
+    # --- 主操作区 ---
     c_config, c_upload = st.columns([1, 2], gap="large")
     
-    # 左栏：配置 (单词切分已移动至此)
     with c_config:
         st.markdown('<div class="step-header">1️⃣ 设置提取规则</div>', unsafe_allow_html=True)
         with st.container(border=True):
@@ -332,24 +373,22 @@ if menu == "⚡ 制作生词本":
             
             min_len = st.number_input("单词最短长度", value=3, min_value=1)
             
-            # 移动到这里的“单词切分”设置
             st.markdown("---")
             chunk_size = st.number_input(
                 "📥 文件拆分大小 (词/文件)", 
                 value=5000, 
                 step=1000,
-                help="当下载 ZIP 时，会将单词表切割成多个文件，方便分批导入背单词软件。"
+                help="当下载 ZIP 时，会将单词表切割成多个文件。"
             )
             
             st.markdown("---")
-            filter_file = st.file_uploader("屏蔽词表 (.txt)", type=['txt'], label_visibility="visible", help="上传您已认识的单词，系统将自动过滤。")
+            filter_file = st.file_uploader("屏蔽词表 (.txt)", type=['txt'], label_visibility="visible")
             filter_set = set()
             if filter_file:
                 c = filter_file.getvalue().decode("utf-8", errors='ignore')
                 filter_set = set(l.strip().lower() for l in c.splitlines() if l.strip())
                 st.caption(f"✅ 已加载 {len(filter_set)} 个熟词")
 
-    # 右栏：上传与执行
     with c_upload:
         st.markdown('<div class="step-header">2️⃣ 上传文件并分析</div>', unsafe_allow_html=True)
         with st.container(border=True):
@@ -364,7 +403,6 @@ if menu == "⚡ 制作生词本":
             
             st.markdown("<br>", unsafe_allow_html=True)
             
-            # 按钮区
             if uploaded_files:
                 if st.button("🚀 开始智能提取", type="primary", use_container_width=True):
                     progress_text = "正在读取文件..."
@@ -381,10 +419,8 @@ if menu == "⚡ 制作生词本":
                     if full_text.strip():
                         my_bar.progress(100, text=f"正在使用 {mode_key.upper()} 引擎清洗数据...")
                         words = process_words(full_text, mode_key, min_len, filter_set)
-                        
                         st.session_state.result_words = words
                         st.session_state.source_files_count = len(uploaded_files)
-                        
                         my_bar.empty()
                         st.success(f"提取完成！共发现 {len(words)} 个生词。")
                         time.sleep(0.5)
@@ -392,35 +428,37 @@ if menu == "⚡ 制作生词本":
                     else:
                         st.error("无法从文件中识别文字，请检查文件格式。")
 
-    # --- C. 结果展示区 (布局重构) ---
+    # --- 结果展示区 ---
     if st.session_state.result_words:
         st.divider()
         st.markdown('<div class="step-header">3️⃣ 结果预览与导入</div>', unsafe_allow_html=True)
         
         words = st.session_state.result_words
+        content_str = "\n".join(words)
         
-        # 结果概览栏
         with st.container(border=True):
             col_stat1, col_stat2, col_stat3 = st.columns(3)
             col_stat1.metric("📚 提取生词总数", f"{len(words)}")
             col_stat2.metric("⏱️ 建议学习天数", f"{math.ceil(len(words)/20)} 天")
             col_stat3.metric("🔍 词汇来源", f"{st.session_state.source_files_count} 个文件")
 
-        # 布局改为：左侧(复制区) + 右侧(操作按钮)
+        # 布局：左侧(复制区) + 右侧(操作按钮)
         col_copy, col_actions = st.columns([2, 1], gap="large")
 
-        # 左侧：直观的一键复制区
+        # 左侧：醒目复制区
         with col_copy:
             st.markdown("##### 📋 单词列表 (一键复制)")
-            st.caption("点击右上角 **Copy** 按钮，直接粘贴到扇贝网。")
-            # 直接展示，依靠 CSS .stCodeBlock max-height: 250px 限制高度，带滚动条
-            st.code("\n".join(words), language="text")
+            # 1. 渲染自定义的大按钮
+            render_copy_button(content_str, "result_area")
+            
+            # 2. 备用展示区 (代码块)
+            st.caption("👇 下方为文本预览 (Preview)")
+            st.code(content_str, language="text")
 
         # 右侧：操作按钮群
         with col_actions:
             st.markdown("##### 🚀 快速操作")
             
-            # 1. 扇贝导入
             st.link_button(
                 "🦁 导入扇贝网 (Web端)", 
                 "https://web.shanbay.com/wordsweb/#/books", 
@@ -431,7 +469,6 @@ if menu == "⚡ 制作生词本":
             
             st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
 
-            # 2. 下载 ZIP (使用 Step 1 设置的 chunk_size)
             zip_buffer = io.BytesIO()
             num_files = math.ceil(len(words) / chunk_size)
             with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
@@ -450,7 +487,6 @@ if menu == "⚡ 制作生词本":
             
             st.markdown("---")
             
-            # 3. 发布到公共库
             with st.expander("☁️ 发布到公共库", expanded=False):
                 with st.form("pub_form"):
                     s_name = st.text_input("文件名 (英文)", value=f"vocab_{int(time.time())}.txt")
@@ -460,7 +496,7 @@ if menu == "⚡ 制作生词本":
                         if not s_name.endswith(".txt"):
                             st.warning("需 .txt 结尾")
                         else:
-                            save_to_github_library(s_name, "\n".join(words), s_title, s_desc)
+                            save_to_github_library(s_name, content_str, s_title, s_desc)
 
 # === 功能二: 公共词书库 ===
 elif menu == "🌍 公共词书库":
@@ -468,7 +504,7 @@ elif menu == "🌍 公共词书库":
     
     st.markdown("""
     <div class="info-box">
-    汇集社区精选词书。<b>直接点击 Copy</b>，即可去扇贝网导入学习。
+    汇集社区精选词书。<b>点击蓝色大按钮复制</b>，即可去扇贝网导入学习。
     </div>
     """, unsafe_allow_html=True)
     
@@ -516,7 +552,10 @@ elif menu == "🌍 公共词书库":
                         st.subheader(f"📄 {title}")
                         st.caption(f"📝 {count} 词")
                         
-                        # 优化：直接展示代码块，无需折叠，CSS 限制高度
+                        # 核心修改：使用醒目的大按钮代替简单的代码展示
+                        render_copy_button(content, f"lib_{i}")
+                        
+                        # 代码块作为预览，高度受限
                         st.code(content, language="text")
                         
                         c_imp, c_dl = st.columns(2)
