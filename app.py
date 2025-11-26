@@ -12,7 +12,7 @@ import pandas as pd
 import streamlit.components.v1 as components
 from github import Github
 
-# --- 【修正】确保引入 copy 库 ---
+# --- 【必需】引入 copy 库用于修复 Secrets 只读问题 ---
 import copy
 
 import streamlit_authenticator as stauth
@@ -71,9 +71,11 @@ try:
          st.error("Secrets 中未找到 'auth' 字段配置。请检查 Streamlit Cloud 设置。")
          st.stop()
     
-    # --- 【核心修正点】 ---
-    # 使用 copy.deepcopy() 创建 Secrets 的深拷贝。
-    # 这样 authenticator 就可以修改 config 这个副本，而不会触发 Secrets 的只读错误。
+    # =================================================================
+    # ⭐⭐⭐ 【关键修复点】 ⭐⭐⭐
+    # 使用 copy.deepcopy() 创建 Secrets 的可编辑副本。
+    # 这行代码解决了 "Secrets does not support item assignment" 错误。
+    # =================================================================
     config = copy.deepcopy(st.secrets["auth"])
 
 except Exception as e:
@@ -81,7 +83,7 @@ except Exception as e:
     st.stop()
 
 # 2. 初始化认证对象
-# 此时传入的 config 是一个可修改的副本
+# 此时传入的 config 是一个可修改的副本，不会再报错
 authenticator = stauth.Authenticate(
     config['credentials'],
     config['cookie']['name'],
