@@ -12,7 +12,9 @@ import pandas as pd
 import streamlit.components.v1 as components
 from github import Github
 
-# --- 【改动点 1】引入身份验证库 ---
+# --- 【核心修复 1/2】引入 copy 库用于深拷贝 Secrets ---
+import copy
+
 import streamlit_authenticator as stauth
 
 # NLP Imports
@@ -61,25 +63,36 @@ PRESET_WORDLISTS = {
 
 # ------------------ 1. 页面配置 ------------------
 st.set_page_config(
-    page_title="VocabMaster Pro | 智能词书工坊",  # 改了个名字体现Pro版
+    page_title="VocabMaster Pro | 智能词书工坊",
     page_icon="⚡",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
 # ==============================================================================
-# === 【核心改动区域：身份验证逻辑开始】 ===
+# === 【身份验证逻辑开始】 ===
 # ==============================================================================
 
 # 1. 从 Streamlit Secrets 加载认证配置
 # 确保你在 Streamlit Cloud 的 Secrets 里配置了 [auth] 部分
 try:
-    config = st.secrets["auth"]
-except FileNotFoundError:
-    st.error("请先在 Streamlit Secrets 中配置 [auth] 信息。")
+    # --- 【核心修复 2/2】关键点 ---
+    # Streamlit Secrets 是只读的，不能直接修改。
+    # 而 streamlit-authenticator 库在初始化时会尝试修改传入的字典。
+    # 因此，我们需要使用 deepcopy 创建一个可编辑的副本。
+    # 检查 keys 是否存在，增强稳健性
+    if "auth" not in st.secrets:
+         st.error("Secrets 中未找到 'auth' 字段配置。请检查 Streamlit Cloud 设置。")
+         st.stop()
+         
+    config = copy.deepcopy(st.secrets["auth"])
+
+except Exception as e:
+    st.error(f"加载认证配置失败: {e}")
     st.stop()
 
 # 2. 初始化认证对象
+# 此时传入的 config 是一个可修改的副本，不会再报错
 authenticator = stauth.Authenticate(
     config['credentials'],
     config['cookie']['name'],
@@ -114,7 +127,7 @@ elif authentication_status is None:
     st.stop()  # 停止运行后面的代码
 
 # ==============================================================================
-# === 【核心改动区域：身份验证逻辑结束】 ===
+# === 【身份验证逻辑结束】 ===
 # === 只有当 authentication_status 为 True 时，代码才会继续往下走 ===
 # ==============================================================================
 
@@ -126,9 +139,7 @@ elif authentication_status:
         st.divider()  # 加一条分割线
 
     # ------------------------------------------------------------------------------
-    # ⭐⭐⭐【关键改动】⭐⭐⭐
-    # 从这里开始，是你【原来代码的所有剩余部分】。
-    # 它们全部都被缩进了一级 (4个空格)，成为了 elif authentication_status: 的子代码块。
+    # 从这里开始，是你原来代码的所有剩余部分 (已缩进)。
     # ------------------------------------------------------------------------------
 
     # 注入 CSS：引入现代设计语言 (Glassmorphism, Soft UI)
@@ -409,12 +420,12 @@ elif authentication_status:
     # ------------------ 4. 核心逻辑 (功能不变) ------------------
     def save_to_github_library(filename, content, title, desc):
         try:
-            # 【改动点】为了更稳健，检查必要的 keys
+            # 【改动点】为了更稳健，检查必要的 keys 是否存在于 st.secrets 中
             if "GITHUB_TOKEN" not in st.secrets or "GITHUB_USERNAME" not in st.secrets or "GITHUB_REPO" not in st.secrets:
                 st.error("🔒 系统未配置 GitHub Secrets，无法发布。")
                 return
 
-            # 读取 secrets (如果按照TOML格式配置，它们是字符串)
+            # 读取 secrets (它们不在 [auth] 块里，所以直接从 st.secrets 读取)
             token = st.secrets["GITHUB_TOKEN"]
             username = st.secrets["GITHUB_USERNAME"]
             repo_name = st.secrets["GITHUB_REPO"]
