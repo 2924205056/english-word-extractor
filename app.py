@@ -273,7 +273,7 @@ def process_words(all_text, mode, min_len, filter_set=None):
 with st.sidebar:
     st.image("https://img.icons8.com/fluency/96/dictionary.png", width=50)
     st.markdown("### VocabMaster")
-    st.caption("v9.0 Final Optimized")
+    st.caption("v10.0 Resource Plus")
     st.markdown("---")
     menu = st.radio("选择功能", ["⚡ 制作生词本", "🌍 公共词书库"])
     st.markdown("---")
@@ -283,20 +283,51 @@ with st.sidebar:
 if menu == "⚡ 制作生词本":
     st.title("⚡ 智能生词提取工坊")
     
-    # 资源导航
-    with st.expander("📖 新手指南 & 资源推荐 (点击展开)", expanded=False):
-        t1, t2, t3, t4 = st.tabs(["💡 操作", "🎬 影视", "📚 阅读", "🎧 听力"])
-        with t1: st.markdown("1. 设置规则 -> 2. 上传文件 -> 3. 一键复制导入扇贝")
+    # 资源导航 (大幅增强)
+    with st.expander("📖 新手指南 & 宝藏资源库 (点击展开)", expanded=False):
+        t1, t2, t3, t4 = st.tabs(["💡 操作指引", "🎬 影视字幕", "📚 原著阅读", "🎧 听力素材"])
+        
+        with t1:
+            st.markdown("""
+            <div style="background:#f8f9fa; padding:15px; border-radius:8px;">
+            <h5 style="margin-top:0">🚀 四步制作专属词书：</h5>
+            <ol>
+                <li><b>准备素材</b>：从右侧标签页下载 <code>.srt</code> 字幕或 <code>.txt</code> 电子书。</li>
+                <li><b>清洗设置</b>：在下方【设置提取规则】中，上传<b>“熟词表”</b>（非常重要！能屏蔽掉 is, the 等简单词）。</li>
+                <li><b>智能提取</b>：将文件拖入上传区，AI 自动完成去重、词形还原（Run/Ran/Running → Run）。</li>
+                <li><b>闭环学习</b>：点击生成的<b>“一键复制”</b>按钮，跳转扇贝网批量制卡，或导出 Anki。</li>
+            </ol>
+            </div>
+            """, unsafe_allow_html=True)
+            
         with t2:
+            st.info("💡 字幕文件是提取口语词汇的最佳材料。下载后无需转换，直接拖入本工具。")
             c1, c2 = st.columns(2)
-            c1.markdown("🎯 **[伪射手网 Assrt](https://assrt.net/)**\n<small>老牌字幕站，中英双语资源丰富。</small>", unsafe_allow_html=True)
-            c1.markdown("📺 **[字幕库 Zimuku](http://zimuku.org/)**\n<small>美剧日剧更新快。</small>", unsafe_allow_html=True)
-            c2.markdown("💎 **[SubHD](https://subhd.tv/)**\n<small>高清影视字幕首选。</small>", unsafe_allow_html=True)
-            c2.markdown("🌎 **[OpenSubtitles](https://www.opensubtitles.org/)**\n<small>全球最大英文字幕库。</small>", unsafe_allow_html=True)
+            c1.markdown("🎯 **[伪射手网 (Assrt)](https://assrt.net/)**\n<small>老牌站点，资源最全，支持中英双语。</small>", unsafe_allow_html=True)
+            c1.markdown("📺 **[字幕库 (Zimuku)](http://zimuku.org/)**\n<small>美剧、日剧更新速度极快。</small>", unsafe_allow_html=True)
+            c1.markdown("⚡ **[Addic7ed](https://www.addic7ed.com/)**\n<small>美剧生肉更新最快的地方，适合高阶学习者。</small>", unsafe_allow_html=True)
+            
+            c2.markdown("💎 **[SubHD](https://subhd.tv/)**\n<small>界面清爽，高清影视字幕首选。</small>", unsafe_allow_html=True)
+            c2.markdown("🌎 **[OpenSubtitles](https://www.opensubtitles.org/)**\n<small>全球最大字幕库，寻找纯英文字幕首选。</small>", unsafe_allow_html=True)
+            c2.markdown("🎞️ **[YIFY Subtitles](https://yifysubtitles.ch/)**\n<small>专门针对电影的高质量英文字幕。</small>", unsafe_allow_html=True)
+
         with t3:
-            st.markdown("🏛️ **[Project Gutenberg](https://www.gutenberg.org/)** (7万+公版电子书)")
+            st.success("📚 推荐下载 .txt 或 .epub (需转txt) 格式。")
+            c1, c2 = st.columns(2)
+            c1.markdown("🏛️ **[Project Gutenberg](https://www.gutenberg.org/)**\n<small>拥有7万+免费公版电子书，英文原著的大宝库。</small>", unsafe_allow_html=True)
+            c1.markdown("📖 **[ManyBooks](https://manybooks.net/)**\n<small>排版精美，分类详细，下载体验好。</small>", unsafe_allow_html=True)
+            
+            c2.markdown("📰 **[Global Times](https://www.globaltimes.cn/)**\n<small>国产英文媒体，用词贴近时政，适合备考。</small>", unsafe_allow_html=True)
+            c2.markdown("🧠 **[Scientific American](https://www.scientificamerican.com/)**\n<small>高阶科普文章，托福/雅思/GRE 阅读同源素材。</small>", unsafe_allow_html=True)
+
         with t4:
-            st.markdown("🔴 **[TED Talks](https://www.ted.com/)** (含 Transcript 演讲稿)")
+            st.warning("🎧 技巧：下载 Transcript (文稿) 提取单词，学完再去听。")
+            c1, c2 = st.columns(2)
+            c1.markdown("🔴 **[TED Talks](https://www.ted.com/)**\n<small>思想盛宴，每个视频都自带多语言文稿。</small>", unsafe_allow_html=True)
+            c1.markdown("🇺🇸 **[VOA Learning English](https://learningenglish.voanews.com/)**\n<small>经典分级听力材料，含纯正文稿。</small>", unsafe_allow_html=True)
+            
+            c2.markdown("🇬🇧 **[BBC Learning English](https://www.bbc.co.uk/learningenglish/)**\n<small>英式英语金牌教程，6 Minute English 必听。</small>", unsafe_allow_html=True)
+            c2.markdown("🎓 **[Coursera](https://www.coursera.org/)**\n<small>学习专业课（计算机/商科）的最好方式。</small>", unsafe_allow_html=True)
 
     if 'result_words' not in st.session_state: st.session_state.result_words = []
     if 'source_files_count' not in st.session_state: st.session_state.source_files_count = 0
@@ -312,7 +343,6 @@ if menu == "⚡ 制作生词本":
             
             min_len = st.number_input("单词最短长度", 3, 20, 3)
             
-            # --- 新增：排序与切分 ---
             st.markdown("---")
             sort_order = st.selectbox("🔀 单词排序", ["按文本出现顺序", "A-Z 排序", "随机打乱"])
             chunk_size = st.number_input("📥 文件拆分大小 (词/文件)", 5000, 50000, 5000, step=1000)
