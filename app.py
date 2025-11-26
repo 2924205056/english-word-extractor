@@ -591,7 +591,7 @@ if menu == "⚡ 制作生词本":
     with c_upload:
         st.markdown('<div class="step-header">2️⃣ 上传与分析</div>', unsafe_allow_html=True)
         with st.container(border=True):
-            uploaded_files = st.file_uploader("支持 .srt, .docx, .txt", type=['txt','srt','ass','docx'], accept_multiple_files=True)
+            uploaded_files = st.file_uploader("支持 .srt,.ass,.docx, .txt", type=['txt','srt','ass','docx'], accept_multiple_files=True)
             st.markdown("<br>", unsafe_allow_html=True)
             if uploaded_files and st.button("🚀 开始提取", type="primary", use_container_width=True):
                 my_bar = st.progress(0, text="读取文件...")
