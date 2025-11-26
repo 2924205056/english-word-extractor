@@ -28,7 +28,7 @@ try:
 except ImportError:
     _HAS_SPACY = False
 
-# ------------------ 1. 页面配置 & CSS ------------------
+# ------------------ 1. 页面配置 & 极简主义设计系统 (UI Overhaul) ------------------
 st.set_page_config(
     page_title="VocabMaster | 智能词书工坊", 
     page_icon="⚡", 
@@ -36,61 +36,219 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# 注入 CSS：引入现代设计语言 (Glassmorphism, Soft UI)
 st.markdown("""
 <style>
-    .stApp { background-color: #fcfdfe; }
-    h1, h2, h3 { font-family: 'Segoe UI', sans-serif; color: #2c3e50; }
-    .step-header { font-size: 1.1rem; font-weight: 700; color: #4f46e5; margin-bottom: 10px; display: flex; align-items: center; }
-    [data-testid="stExpander"], [data-testid="stForm"] { background: white; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); border: 1px solid #e5e7eb; }
-    div.stButton > button { border-radius: 8px; padding: 0.5rem 1rem; font-weight: 600; transition: all 0.2s; }
-    div.stButton > button:hover { transform: translateY(-1px); }
-    .info-box { background-color: #eff6ff; border-left: 4px solid #3b82f6; padding: 10px 15px; border-radius: 4px; color: #1e3a8a; font-size: 0.9em; margin-bottom: 15px; }
-    a { color: #0366d6; text-decoration: none; }
-    a:hover { text-decoration: underline; }
+    /* 引入 Google Fonts: Inter */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+    /* 全局基础设置 */
+    .stApp {
+        background-color: #f8fafc; /* 极浅的蓝灰色背景 */
+        font-family: 'Inter', sans-serif;
+    }
     
-    /* 代码块样式优化 */
-    .stCodeBlock {
-        max-height: 200px !important;
-        overflow-y: auto !important;
+    h1, h2, h3, h4, h5 {
+        color: #1e293b;
+        font-family: 'Inter', sans-serif;
+        font-weight: 700;
+        letter-spacing: -0.025em;
+    }
+    
+    p, div, span {
+        color: #475569;
+        line-height: 1.6;
+    }
+
+    /* 侧边栏美化 */
+    section[data-testid="stSidebar"] {
+        background-color: #ffffff;
+        border-right: 1px solid #f1f5f9;
+        box-shadow: 4px 0 24px rgba(0,0,0,0.02);
+    }
+
+    /* 卡片化容器 (Expander, Form, Container) */
+    [data-testid="stExpander"], [data-testid="stForm"], [data-testid="stContainer"] {
+        background: #ffffff;
         border: 1px solid #e2e8f0;
-        border-radius: 8px;
+        border-radius: 16px; /* 更大的圆角 */
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03); /* 柔和阴影 */
+        transition: all 0.3s ease;
+    }
+    
+    /* 去除 Expander 默认的丑陋边框，改为纯净卡片 */
+    .streamlit-expanderHeader {
+        background-color: transparent;
+        color: #334155;
+        font-weight: 600;
+    }
+
+    /* 按钮设计：渐变色 + 悬浮效果 */
+    div.stButton > button {
+        background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); /* Indigo Gradient */
+        color: white;
+        border: none;
+        border-radius: 10px;
+        padding: 0.6rem 1.2rem;
+        font-weight: 600;
+        font-size: 0.95rem;
+        box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    
+    div.stButton > button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 16px rgba(79, 70, 229, 0.4);
+        color: white;
+    }
+    
+    /* 次级按钮 (Secondary Button) 样式覆盖 */
+    div.stButton > button[kind="secondary"] {
+        background: white;
+        color: #4f46e5;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+
+    /* 链接按钮 (Link Button) */
+    a[kind="primary"] {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important; /* 绿色渐变区分 */
+        border: none !important;
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3) !important;
+        border-radius: 10px !important;
+        color: white !important;
+        font-weight: 600 !important;
+        text-decoration: none !important;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 0.6rem 1.2rem;
+        transition: transform 0.2s ease !important;
+    }
+    a[kind="primary"]:hover {
+        transform: translateY(-2px);
+    }
+
+    /* 输入框与下拉菜单美化 */
+    .stTextInput > div > div, .stSelectbox > div > div, .stNumberInput > div > div {
         background-color: #f8fafc;
-        opacity: 0.9;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        color: #334155;
+    }
+    .stTextInput > div > div:focus-within {
+        border-color: #6366f1;
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    }
+
+    /* 步骤标题样式 (保持原逻辑，优化视觉) */
+    .step-header {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #334155;
+        margin-bottom: 16px;
+        display: flex;
+        align-items: center;
+        padding-bottom: 8px;
+        border-bottom: 2px solid #f1f5f9;
+    }
+    
+    /* 提示框 (Info Box) 玻璃拟态 */
+    .info-box {
+        background: rgba(239, 246, 255, 0.7);
+        backdrop-filter: blur(10px);
+        border: 1px solid #dbeafe;
+        border-left: 4px solid #3b82f6;
+        padding: 16px;
+        border-radius: 8px;
+        color: #1e40af;
+        font-size: 0.95em;
+        margin-bottom: 20px;
+    }
+    
+    /* 代码块样式优化：更像编辑器 */
+    .stCodeBlock {
+        max-height: 220px !important;
+        overflow-y: auto !important;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        background-color: #f1f5f9; /* 更深的灰背景，增加对比 */
+        font-family: 'JetBrains Mono', monospace;
+    }
+    
+    /* Metric 指标卡片 */
+    [data-testid="stMetric"] {
+        background-color: white;
+        padding: 15px;
+        border-radius: 12px;
+        border: 1px solid #f1f5f9;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        text-align: center;
+    }
+    [data-testid="stMetricLabel"] { color: #64748b; font-size: 0.9rem; }
+    [data-testid="stMetricValue"] { color: #4f46e5; font-size: 1.8rem; font-weight: 700; }
+
+    /* Tabs 选项卡美化 */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 8px;
+        background-color: transparent;
+    }
+    .stTabs [data-baseweb="tab"] {
+        background-color: white;
+        border-radius: 8px 8px 0 0;
+        border: 1px solid #e2e8f0;
+        border-bottom: none;
+        padding: 10px 20px;
+        color: #64748b;
+    }
+    .stTabs [aria-selected="true"] {
+        background-color: #f8fafc;
+        color: #4f46e5;
+        font-weight: 600;
+        border-top: 2px solid #4f46e5;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# ------------------ 2. 自定义复制按钮组件 ------------------
+# ------------------ 2. 自定义复制按钮组件 (UI 同步优化) ------------------
 def render_copy_button(text_content, unique_key):
     safe_text = json.dumps(text_content)
+    # 更新 JS 按钮样式以匹配新的设计系统
     html_code = f"""
     <!DOCTYPE html>
     <html>
     <head>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@600&display=swap');
+        body {{ margin: 0; padding: 0; }}
         .copy-btn {{
             width: 100%;
-            padding: 10px;
-            background-color: #4f46e5;
+            padding: 14px;
+            /* 匹配 Python 按钮的 Indigo 渐变 */
+            background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
             color: white;
             border: none;
-            border-radius: 6px;
-            font-family: 'Segoe UI', sans-serif;
+            border-radius: 10px;
+            font-family: 'Inter', sans-serif;
             font-weight: 600;
-            font-size: 14px;
+            font-size: 15px;
             cursor: pointer;
-            transition: all 0.3s ease;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 2px 4px rgba(79, 70, 229, 0.2);
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+            letter-spacing: 0.02em;
         }}
         .copy-btn:hover {{
-            background-color: #4338ca;
-            transform: translateY(-1px);
-            box-shadow: 0 4px 6px rgba(79, 70, 229, 0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(79, 70, 229, 0.4);
+            filter: brightness(1.05);
         }}
-        .icon {{ margin-right: 6px; }}
+        .copy-btn:active {{
+            transform: translateY(0);
+        }}
+        .icon {{ margin-right: 8px; font-size: 18px; }}
     </style>
     </head>
     <body>
@@ -108,11 +266,16 @@ def render_copy_button(text_content, unique_key):
                 document.execCommand('copy');
                 const btn = document.getElementById("btn_{unique_key}");
                 const originalHTML = btn.innerHTML;
+                
+                // 成功状态 - 绿色渐变
                 btn.innerHTML = '<span class="icon">✅</span> 成功！(Copied)';
-                btn.style.backgroundColor = "#10b981";
+                btn.style.background = "linear-gradient(135deg, #10b981 0%, #059669 100%)";
+                btn.style.boxShadow = "0 4px 12px rgba(16, 185, 129, 0.3)";
+                
                 setTimeout(() => {{
                     btn.innerHTML = originalHTML;
-                    btn.style.backgroundColor = "#4f46e5";
+                    btn.style.background = "linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)";
+                    btn.style.boxShadow = "0 4px 12px rgba(79, 70, 229, 0.3)";
                 }}, 2000);
             }} catch (err) {{}}
             document.body.removeChild(textArea);
@@ -121,9 +284,9 @@ def render_copy_button(text_content, unique_key):
     </body>
     </html>
     """
-    components.html(html_code, height=45)
+    components.html(html_code, height=55)
 
-# ------------------ 3. 资源加载 ------------------
+# ------------------ 3. 资源加载 (功能不变) ------------------
 @st.cache_resource
 def download_nltk_resources():
     resources = ["punkt", "averaged_perceptron_tagger", "averaged_perceptron_tagger_eng", "wordnet", "omw-1.4", "stopwords"]
@@ -142,7 +305,7 @@ def load_spacy_model():
 download_nltk_resources()
 nlp_spacy = load_spacy_model()
 
-# ------------------ 4. 核心逻辑 ------------------
+# ------------------ 4. 核心逻辑 (功能不变) ------------------
 def save_to_github_library(filename, content, title, desc):
     try:
         if "GITHUB_TOKEN" not in st.secrets:
@@ -271,9 +434,9 @@ def process_words(all_text, mode, min_len, filter_set=None):
 # ------------------ 5. UI 架构 ------------------
 
 with st.sidebar:
-    st.image("https://img.icons8.com/fluency/96/dictionary.png", width=50)
+    st.image("https://img.icons8.com/fluency/96/dictionary.png", width=64) # 稍微调大图标
     st.markdown("### VocabMaster")
-    st.caption("v10.0 Resource Plus")
+    st.caption("v11.0 Design Edition")
     st.markdown("---")
     menu = st.radio("选择功能", ["⚡ 制作生词本", "🌍 公共词书库"])
     st.markdown("---")
@@ -283,13 +446,13 @@ with st.sidebar:
 if menu == "⚡ 制作生词本":
     st.title("⚡ 智能生词提取工坊")
     
-    # 资源导航 (大幅增强)
+    # 资源导航
     with st.expander("📖 新手指南 & 宝藏资源库 (点击展开)", expanded=False):
         t1, t2, t3, t4 = st.tabs(["💡 操作指引", "🎬 影视字幕", "📚 原著阅读", "🎧 听力素材"])
         
         with t1:
             st.markdown("""
-            <div style="background:#f8f9fa; padding:15px; border-radius:8px;">
+            <div style="padding:5px;">
             <h5 style="margin-top:0">🚀 四步制作专属词书：</h5>
             <ol>
                 <li><b>准备素材</b>：从右侧标签页下载 <code>.srt</code> 字幕或 <code>.txt</code> 电子书。</li>
@@ -405,8 +568,11 @@ if menu == "⚡ 制作生词本":
             
         with col_act:
             st.markdown("##### 🚀 操作")
-            st.link_button("🦁 导入扇贝 (Web)", "https://web.shanbay.com/wordsweb/#/books", type="primary", use_container_width=True)
-            st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
+            st.markdown(
+                """<a href="https://web.shanbay.com/wordsweb/#/books" target="_blank" kind="primary">🦁 导入扇贝 (Web)</a>""", 
+                unsafe_allow_html=True
+            )
+            st.markdown("<div style='height:15px'></div>", unsafe_allow_html=True)
             
             # ZIP 下载
             zip_buffer = io.BytesIO()
@@ -464,10 +630,13 @@ elif menu == "🌍 公共词书库":
                         
                         # 操作按钮区
                         c1, c2 = st.columns(2)
-                        with c1: st.link_button("🚀 导入", "https://web.shanbay.com/wordsweb/#/books", use_container_width=True)
+                        with c1: 
+                             st.markdown(
+                                """<a href="https://web.shanbay.com/wordsweb/#/books" target="_blank" kind="primary" style="font-size:0.8rem; padding:0.4rem;">🚀 导入</a>""", 
+                                unsafe_allow_html=True
+                            )
                         with c2: st.download_button("⬇️ 下载", content, f, "text/plain", use_container_width=True)
                         
-                        # 核心修改：默认折叠，保持清爽
                         with st.expander("👀 展开查看与复制"):
                             st.caption(desc)
                             render_copy_button(content, f"lib_copy_{i}")
