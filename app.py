@@ -28,6 +28,34 @@ try:
 except ImportError:
     _HAS_SPACY = False
 
+# ------------------ 0. 初始化：准备预置词库数据 (新增部分) ------------------
+# 定义存放词表的目录
+WORDLIST_DIR = "wordlists"
+
+# 确保目录存在
+if not os.path.exists(WORDLIST_DIR):
+    os.makedirs(WORDLIST_DIR)
+    # --- 【重要提示】请用真实的词表替换以下演示文件内容 ---
+    # 创建演示用的小学词表
+    with open(os.path.join(WORDLIST_DIR, "primary.txt"), "w", encoding="utf-8") as f:
+        f.write("a\nan\nthe\nis\nare\nam\nhello\ngood\nmorning\napple\nbanana\ncat\ndog\nbook\npen")
+    # 创建演示用的中考词表
+    with open(os.path.join(WORDLIST_DIR, "zhongkao.txt"), "w", encoding="utf-8") as f:
+        f.write("ability\nabsent\naccept\naccording\nachieve\nactive\nactually\nadd\naddress\nadmit")
+    # 创建演示用的高考词表
+    with open(os.path.join(WORDLIST_DIR, "gaokao.txt"), "w", encoding="utf-8") as f:
+        f.write("abandon\nability\nabnormal\naboard\nabolish\nabortion\nabrupt\nabsence\nabsolute\nabsorb")
+    print(f"已在 {WORDLIST_DIR} 目录下创建演示词表文件。请替换为真实数据。")
+
+# 定义预置词库的显示名称和文件路径映射
+PRESET_WORDLISTS = {
+    "👶 小学核心词 (演示)": os.path.join(WORDLIST_DIR, "primary.txt"),
+    "👦 中考必备词 (演示)": os.path.join(WORDLIST_DIR, "zhongkao.txt"),
+    "👨‍🎓 高考3500词 (演示)": os.path.join(WORDLIST_DIR, "gaokao.txt"),
+    # 你可以在这里继续添加，例如四六级、考研等
+    # "📚 大学四级词汇": os.path.join(WORDLIST_DIR, "cet4.txt"),
+}
+
 # ------------------ 1. 页面配置 & 极简主义设计系统 (UI Overhaul) ------------------
 st.set_page_config(
     page_title="VocabMaster | 智能词书工坊", 
@@ -130,15 +158,21 @@ st.markdown("""
     }
 
     /* 输入框与下拉菜单美化 */
-    .stTextInput > div > div, .stSelectbox > div > div, .stNumberInput > div > div {
+    .stTextInput > div > div, .stSelectbox > div > div, .stNumberInput > div > div, .stMultiSelect > div > div {
         background-color: #f8fafc;
         border: 1px solid #e2e8f0;
         border-radius: 10px;
         color: #334155;
     }
-    .stTextInput > div > div:focus-within {
+    .stTextInput > div > div:focus-within, .stMultiSelect > div > div:focus-within {
         border-color: #6366f1;
         box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    }
+    /* MultiSelect 的 Tag 样式 */
+    .stMultiSelect [data-baseweb="tag"] {
+        background-color: #e0e7ff;
+        border: 1px solid #c7d2fe;
+        color: #4f46e5;
     }
 
     /* 步骤标题样式 (保持原逻辑，优化视觉) */
@@ -436,7 +470,7 @@ def process_words(all_text, mode, min_len, filter_set=None):
 with st.sidebar:
     st.image("https://img.icons8.com/fluency/96/dictionary.png", width=64) # 稍微调大图标
     st.markdown("### VocabMaster")
-    st.caption("v11.0 Design Edition")
+    st.caption("v11.1 Pro Edition")
     st.markdown("---")
     menu = st.radio("选择功能", ["⚡ 制作生词本", "🌍 公共词书库"])
     st.markdown("---")
@@ -456,7 +490,7 @@ if menu == "⚡ 制作生词本":
             <h5 style="margin-top:0">🚀 四步制作专属词书：</h5>
             <ol>
                 <li><b>准备素材</b>：从右侧标签页下载 <code>.srt</code> 字幕或 <code>.txt</code> 电子书。</li>
-                <li><b>清洗设置</b>：在下方【设置提取规则】中，上传<b>“熟词表”</b>（非常重要！能屏蔽掉 is, the 等简单词）。</li>
+                <li><b>清洗设置</b>：在下方【设置提取规则】中，选择<b>“预置熟词库”</b>或上传自定义熟词表（非常重要！能屏蔽掉 is, the 等简单词）。</li>
                 <li><b>智能提取</b>：将文件拖入上传区，AI 自动完成去重、词形还原（Run/Ran/Running → Run）。</li>
                 <li><b>闭环学习</b>：点击生成的<b>“一键复制”</b>按钮，跳转扇贝网批量制卡，或导出词书。</li>
             </ol>
@@ -510,13 +544,49 @@ if menu == "⚡ 制作生词本":
             sort_order = st.selectbox("🔀 单词排序", ["按文本出现顺序", "A-Z 排序", "随机打乱"])
             chunk_size = st.number_input("📥 文件拆分大小 (词/文件)", 5000, 50000, 5000, step=1000)
             
+            # --- 改动开始：新的熟词屏蔽区域 ---
             st.markdown("---")
-            filter_file = st.file_uploader("屏蔽熟词表 (.txt)", type=['txt'])
+            st.markdown("##### 🛡️ 熟词屏蔽设置")
+            
+            # 1. 预置词库多选
+            selected_presets = st.multiselect(
+                "选择预置熟词库 (可多选, 叠加生效)",
+                options=list(PRESET_WORDLISTS.keys()),
+                default=[],
+                help="选择你已经掌握的词汇等级，这些词将不会出现在最终结果中。"
+            )
+            
+            # 2. 自定义上传
+            filter_file = st.file_uploader("上传自定义熟词表 (.txt)", type=['txt'], help="如果你有自己的专属词表，可以在这里上传，将与预置词库叠加。")
+            
+            # 3. 合并过滤词集合
             filter_set = set()
+            # 处理预置词库
+            for preset_name in selected_presets:
+                file_path = PRESET_WORDLISTS[preset_name]
+                if os.path.exists(file_path):
+                    try:
+                        with open(file_path, "r", encoding="utf-8") as f:
+                            # 读取文件，去除首尾空格，转小写，加入集合
+                            words_in_file = set(l.strip().lower() for l in f if l.strip())
+                            filter_set.update(words_in_file)
+                    except Exception as e:
+                         st.warning(f"读取词库 {preset_name} 失败: {e}")
+                else:
+                     st.warning(f"找不到词库文件: {file_path}")
+
+            # 处理自定义上传
             if filter_file:
                 c = filter_file.getvalue().decode("utf-8", errors='ignore')
-                filter_set = set(l.strip().lower() for l in c.splitlines() if l.strip())
-                st.caption(f"✅ 已加载 {len(filter_set)} 词")
+                custom_words = set(l.strip().lower() for l in c.splitlines() if l.strip())
+                filter_set.update(custom_words)
+                
+            # 显示反馈
+            if filter_set:
+                st.caption(f"✅ 已启用屏蔽，共计 {len(filter_set)} 个熟词。")
+            else:
+                 st.caption("ℹ️ 未启用任何熟词屏蔽。")
+            # --- 改动结束 ---
 
     with c_upload:
         st.markdown('<div class="step-header">2️⃣ 上传与分析</div>', unsafe_allow_html=True)
@@ -532,7 +602,8 @@ if menu == "⚡ 制作生词本":
                 
                 full_text = "\n".join(all_text)
                 if full_text.strip():
-                    my_bar.progress(100, text="AI 分析中...")
+                    my_bar.progress(100, text="AI 分析中 (可能需要一点时间)...")
+                    # 将合并后的 filter_set 传递给处理函数
                     words = process_words(full_text, mode_key, min_len, filter_set)
                     
                     # 应用排序
