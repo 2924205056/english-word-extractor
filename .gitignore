@@ -1,5 +1,0 @@
-# 忽略包含敏感信息的配置文件
-config.yaml
-
-# 忽略 Streamlit 的本地密钥文件夹 (后面会讲到)
-.streamlit/
