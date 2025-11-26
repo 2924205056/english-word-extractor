@@ -49,9 +49,9 @@ if not os.path.exists(WORDLIST_DIR):
 
 # 定义预置词库的显示名称和文件路径映射
 PRESET_WORDLISTS = {
-    "👶 小学核心词 (演示)": os.path.join(WORDLIST_DIR, "primary.txt"),
-    "👦 中考必备词 (演示)": os.path.join(WORDLIST_DIR, "zhongkao.txt"),
-    "👨‍🎓 高考3500词 (演示)": os.path.join(WORDLIST_DIR, "gaokao.txt"),
+    "👶 小学核心词 ": os.path.join(WORDLIST_DIR, "primary.txt"),
+    "👦 中考必备词 ": os.path.join(WORDLIST_DIR, "zhongkao.txt"),
+    "👨‍🎓 高考3500词 ": os.path.join(WORDLIST_DIR, "gaokao.txt"),
     # 你可以在这里继续添加，例如四六级、考研等
     # "📚 大学四级词汇": os.path.join(WORDLIST_DIR, "cet4.txt"),
 }
