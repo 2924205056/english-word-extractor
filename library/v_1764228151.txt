@@ -1,0 +1,7 @@
+turn
+put
+cut
+result
+plan
+rainy
+fire
