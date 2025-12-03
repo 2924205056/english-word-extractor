@@ -1,17 +1,3 @@
-这是一个非常关键的修复。
-
-**为什么之前的代码无法读取 Library 了？**
-原因是在上一次 UI 重构（变为 Teal/Slate 风格）时，为了展示 3D 书籍的视觉效果，我暂时使用了\*\*静态的模拟数据（Mock Data）\*\*替换了原本读取本地/GitHub 文件的逻辑。
-
-下面的代码**完美融合**了三个部分：
-
-1.  **新 UI 风格**（Teal/Slate + 3D 书籍）。
-2.  **新手指引模块**（你提供的代码）。
-3.  **动态逻辑回归**（重新读取 `library` 文件夹，并支持上传到 GitHub）。
-
-请使用以下完整代码覆盖 `app.py`：
-
-```python
 import streamlit as st
 import io
 import re
@@ -537,4 +523,3 @@ elif "词书库" in menu:
 # === 个人中心 ===
 else:
     st.info("🚧 个人中心正在施工中... (Coming Soon)")
-```
