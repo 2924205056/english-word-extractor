@@ -60,178 +60,142 @@ def load_spacy_model():
 download_nltk_resources()
 nlp_spacy = load_spacy_model()
 
-# ------------------ 1. 核心 CSS 设计系统 (Pixel-Perfect 还原) ------------------
+# ------------------ 1. 深度 CSS 设计系统 ------------------
 st.set_page_config(page_title="VocabMaster", page_icon="⚡", layout="wide", initial_sidebar_state="expanded")
 
 st.markdown("""
 <style>
-    /* 引入参考图同款字体 */
     @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Sans+SC:wght@400;500;700&display=swap');
 
-    /* --- 全局重置 --- */
+    /* 全局背景与字体 */
     .stApp {
-        background-color: #F8FAFC; /* Slate-50 */
+        background-color: #F8FAFC; 
         font-family: 'Plus Jakarta Sans', 'Noto Sans SC', sans-serif;
         color: #1e293b;
     }
     
-    /* 隐藏 Streamlit 默认 Header 和 Footer */
+    /* 隐藏默认 Header */
     header[data-testid="stHeader"] { background: transparent; pointer-events: none; }
-    footer { display: none; }
-    .stMain { margin-top: -60px; } /* 拉起内容 */
+    .stMain { margin-top: -50px; }
 
-    /* --- 侧边栏 (Sidebar) 1:1 还原 --- */
+    /* --- 侧边栏优化 --- */
     section[data-testid="stSidebar"] {
-        background-color: #ffffff;
+        background-color: white;
         border-right: 1px solid #f1f5f9;
-        box-shadow: 4px 0 24px rgba(0,0,0,0.02);
-        width: 280px !important;
+        box-shadow: 2px 0 15px rgba(0,0,0,0.01);
     }
-    /* Logo 区域 */
-    .logo-box {
-        display: flex; align-items: center; gap: 12px; padding: 20px 10px; margin-bottom: 20px;
-    }
-    .logo-icon {
-        width: 40px; height: 40px; 
-        background: linear-gradient(135deg, #2DD4BF 0%, #0F766E 100%);
-        border-radius: 10px; display: flex; align-items: center; justify-content: center;
-        color: white; font-weight: 800; font-size: 20px;
-        box-shadow: 0 0 15px rgba(15, 118, 110, 0.3);
-    }
-    .logo-text { font-size: 20px; font-weight: 800; color: #0f172a; letter-spacing: -0.5px; }
 
-    /* --- 通用组件样式 --- */
-    
-    /* 白色卡片 (替代 st.container) */
-    .card-container {
-        background: white;
-        border: 1px solid #e2e8f0;
-        border-radius: 24px; /* 更大的圆角 */
-        padding: 24px;
-        box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
-        margin-bottom: 20px;
+    /* --- 核心：原生卡片容器美化 --- */
+    div[data-testid="stVerticalBlockBorderWrapper"] > div {
+        background-color: white !important;
+        border: 1px solid #e2e8f0 !important;
+        border-radius: 16px !important;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
+        padding: 24px !important;
     }
-    
-    /* 标题样式 */
-    h1, h2, h3 { font-family: 'Plus Jakarta Sans', sans-serif; color: #0f172a; letter-spacing: -0.02em; }
-    
-    /* 自定义按钮 (Primary - Teal) */
+
+    /* --- 组件样式 --- */
+    /* 按钮 */
     div.stButton > button[kind="primary"] {
-        background: #0f172a; /* Dark Slate based on ref */
-        color: white; border: none; width: 100%;
-        border-radius: 16px; padding: 0.75rem 1.5rem; 
-        font-weight: 700; font-size: 1rem;
-        transition: all 0.2s ease;
-        box-shadow: 0 4px 12px rgba(15, 23, 42, 0.2);
-        display: flex; align-items: center; justify-content: center; gap: 8px;
+        background: #0f172a; color: white; border: none; width: 100%;
+        border-radius: 12px; padding: 0.6rem 1.2rem; font-weight: 600;
+        transition: all 0.2s;
     }
     div.stButton > button[kind="primary"]:hover {
-        background: #0F766E; /* Hover to Teal */
-        transform: translateY(-2px);
-        box-shadow: 0 8px 20px rgba(15, 118, 110, 0.3);
+        background: #334155; transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(15, 23, 42, 0.15);
     }
 
-    /* 输入框美化 (去除默认边框，融入卡片) */
+    /* 输入框/下拉框 */
     .stTextInput > div > div, .stSelectbox > div > div, .stNumberInput > div > div {
-        background-color: #F8FAFC; border: 1px solid #e2e8f0; border-radius: 12px; height: 48px;
+        background-color: #F8FAFC; border: 1px solid #cbd5e1; border-radius: 10px;
     }
-    .stTextInput > div > div:focus-within { border-color: #0F766E; box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.1); }
     
-    /* 大文本域 (Text Area) - 模仿参考图的无边框设计 */
-    .stTextArea > div > div {
-        background-color: transparent; border: none; border-bottom: 1px dashed #e2e8f0;
-        border-radius: 0; padding: 0; font-family: 'JetBrains Mono', monospace;
+    /* 文本域 (Text Area) */
+    .stTextArea textarea {
+        background-color: #F8FAFC; border: 1px solid #cbd5e1; border-radius: 10px;
+        font-family: 'JetBrains Mono', monospace; font-size: 14px;
     }
-    .stTextArea textarea { font-size: 14px; line-height: 1.6; color: #334155; }
-    
-    /* 文件上传区 (Dotted) */
+
+    /* 文件上传区 (虚线风格) */
     [data-testid="stFileUploader"] {
-        background-color: #F8FAFC; border: 2px dashed #cbd5e1; border-radius: 16px; padding: 20px;
+        background-color: #F8FAFC; border: 2px dashed #94a3b8; border-radius: 12px;
+        padding: 20px; transition: all 0.3s;
     }
-    [data-testid="stFileUploader"] section { background-color: transparent; }
-
-    /* 顶部 Glass Header */
-    .glass-header {
-        background: rgba(255, 255, 255, 0.8);
-        backdrop-filter: blur(12px);
-        border-bottom: 1px solid rgba(255,255,255,0.5);
-        padding: 16px 32px;
+    [data-testid="stFileUploader"]:hover {
+        border-color: #0F766E; background-color: #f0fdfa;
+    }
+    
+    /* 顶部导航条 Glass */
+    .top-nav {
+        background: rgba(255,255,255,0.8); backdrop-filter: blur(10px);
+        padding: 15px 20px; border-bottom: 1px solid #e2e8f0;
         display: flex; justify-content: space-between; align-items: center;
-        margin: -60px -60px 20px -60px; /* 抵消 stMain 的 margin */
-        position: sticky; top: 0; z-index: 999;
+        margin-bottom: 20px; border-radius: 0 0 16px 16px;
     }
-    
-    /* 3D 书籍样式 */
-    .book-3d {
-        width: 100%; aspect-ratio: 3/4; border-radius: 4px 12px 12px 4px; position: relative;
-        transform-style: preserve-3d; transition: transform 0.3s ease; box-shadow: 0 10px 30px -5px rgba(0,0,0,0.1);
-        cursor: pointer; display: flex; flex-direction: column; justify-content: center; align-items: center;
-        text-align: center; padding: 15px; overflow: hidden; background: white;
-    }
-    .book-3d:hover { transform: translateY(-8px) rotateY(-5deg) scale(1.02); box-shadow: 0 20px 40px -5px rgba(0,0,0,0.2); }
-    .book-texture { position: absolute; inset: 0; opacity: 0.1; background-image: radial-gradient(#000 1px, transparent 1px); background-size: 4px 4px; }
-    
-    /* Tabs 样式优化 */
-    .stTabs [data-baseweb="tab-list"] { gap: 8px; background-color: transparent; border-bottom: none; }
-    .stTabs [data-baseweb="tab"] {
-        background-color: white; border-radius: 12px; border: 1px solid #e2e8f0; padding: 8px 16px; font-weight: 600; color: #64748b;
-    }
-    .stTabs [aria-selected="true"] {
-        background-color: #0f172a; color: white; border: none; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.2);
-    }
-    
-    /* Expander 样式 */
-    .streamlit-expanderHeader { background-color: white; border-radius: 12px; font-weight: 600; border: 1px solid #e2e8f0; }
-    [data-testid="stExpander"] { border: none; box-shadow: none; background: transparent; }
 
+    /* 3D 书籍 */
+    .book-3d {
+        width: 100%; aspect-ratio: 3/4; border-radius: 6px 14px 14px 6px;
+        position: relative; transition: transform 0.3s; cursor: pointer;
+        display: flex; flex-direction: column; justify-content: center; align-items: center;
+        text-align: center; padding: 10px; box-shadow: 5px 5px 15px rgba(0,0,0,0.1);
+    }
+    .book-3d:hover { transform: translateY(-5px) scale(1.02); box-shadow: 8px 12px 25px rgba(0,0,0,0.15); }
+    
 </style>
 """, unsafe_allow_html=True)
 
-# ------------------ 2. 逻辑层 ------------------
+# ------------------ 2. 逻辑函数 ------------------
 def save_to_github_library(filename, content, title, desc):
     try:
-        if "GITHUB_TOKEN" not in st.secrets:
-            # 本地降级模式
-            with open(os.path.join(LIBRARY_DIR, filename), "w", encoding="utf-8") as f: f.write(content)
-            # 更新本地 info
-            local_info_path = os.path.join(LIBRARY_DIR, "info.json")
-            try: 
-                with open(local_info_path, "r", encoding="utf-8") as f: local_info = json.load(f)
-            except: local_info = {}
-            local_info[filename] = {"title": title, "desc": desc, "date": time.strftime("%Y-%m-%d")}
-            with open(local_info_path, "w", encoding="utf-8") as f: json.dump(local_info, f, indent=2, ensure_ascii=False)
-            st.toast("⚠️ 无 GitHub Token，已保存至本地 Library。", icon="📂")
-            time.sleep(1)
-            st.rerun()
-            return
+        # 1. 优先尝试云端上传
+        if "GITHUB_TOKEN" in st.secrets:
+            token = st.secrets["GITHUB_TOKEN"]
+            g = Github(token)
+            repo = g.get_repo(f"{st.secrets['GITHUB_USERNAME']}/{st.secrets['GITHUB_REPO']}")
+            
+            # 上传文件
+            try: repo.create_file(f"library/{filename}", f"Create {filename}", content)
+            except: repo.update_file(f"library/{filename}", f"Update {filename}", content, repo.get_contents(f"library/{filename}").sha)
 
-        token = st.secrets["GITHUB_TOKEN"]
-        g = Github(token)
-        repo = g.get_repo(f"{st.secrets['GITHUB_USERNAME']}/{st.secrets['GITHUB_REPO']}")
-        
-        # 上传文件
-        try: repo.create_file(f"library/{filename}", f"Create {filename}", content)
-        except: repo.update_file(f"library/{filename}", f"Update {filename}", content, repo.get_contents(f"library/{filename}").sha)
-
-        # 更新索引
-        info_path = "library/info.json"
-        try:
-            c = repo.get_contents(info_path)
-            info = json.loads(c.decoded_content.decode())
+            # 更新云端 info.json
+            info_path = "library/info.json"
+            try:
+                c = repo.get_contents(info_path)
+                info = json.loads(c.decoded_content.decode())
+            except:
+                info = {}
+            
             info[filename] = {"title": title, "desc": desc, "date": time.strftime("%Y-%m-%d")}
-            repo.update_file(info_path, "Update info", json.dumps(info, ensure_ascii=False, indent=2), c.sha)
-        except:
-            info = {filename: {"title": title, "desc": desc, "date": time.strftime("%Y-%m-%d")}}
-            repo.create_file(info_path, "Init info", json.dumps(info, ensure_ascii=False, indent=2))
-        
-        # 同时写本地，保证流畅
+            
+            try:
+                repo.update_file(info_path, "Update info", json.dumps(info, ensure_ascii=False, indent=2), repo.get_contents(info_path).sha)
+            except:
+                repo.create_file(info_path, "Init info", json.dumps(info, ensure_ascii=False, indent=2))
+                
+            st.toast("✅ 云端发布成功！", icon="🎉")
+        else:
+            st.toast("⚠️ 无 GitHub Token，仅保存到本地。", icon="📂")
+
+        # 2. 始终保存到本地 (用于即时显示)
         with open(os.path.join(LIBRARY_DIR, filename), "w", encoding="utf-8") as f: f.write(content)
-        st.toast("✅ 云端同步成功！", icon="🎉")
+        
+        # 更新本地 info.json
+        local_info_path = os.path.join(LIBRARY_DIR, "info.json")
+        try: 
+            with open(local_info_path, "r", encoding="utf-8") as f: local_info = json.load(f)
+        except: local_info = {}
+        
+        local_info[filename] = {"title": title, "desc": desc, "date": time.strftime("%Y-%m-%d")}
+        
+        with open(local_info_path, "w", encoding="utf-8") as f: json.dump(local_info, f, indent=2, ensure_ascii=False)
+
         time.sleep(1)
         st.rerun()
 
     except Exception as e:
-        st.error(f"操作失败: {e}")
+        st.error(f"发布过程中出现错误: {e}")
 
 def extract_text_from_bytes(file_obj, filename):
     try:
@@ -243,241 +207,249 @@ def extract_text_from_bytes(file_obj, filename):
     except: return ""
 
 def process_words(text, mode, min_len, filter_set=None):
-    # 简单的进度条模拟
-    bar = st.progress(0)
-    for i in range(50):
-        time.sleep(0.01)
-        bar.progress(i + 1)
-    
-    cleaned = [re.sub(r'[^a-z]', '', w.lower()) for w in re.findall(r"[A-Za-z-]+", text) if w]
-    lemmatized = []
-    
-    if mode == "spacy" and nlp_spacy:
-        doc = nlp_spacy(" ".join(cleaned[:100000])) # Limit for demo speed
-        lemmatized = [t.lemma_.lower() for t in doc if t.lemma_.isalpha()]
-    else:
-        l = WordNetLemmatizer()
-        lemmatized = [l.lemmatize(w) for w in cleaned]
+    with st.spinner("AI 正在分析语义与词形..."):
+        time.sleep(0.5)
+        cleaned = [re.sub(r'[^a-z]', '', w.lower()) for w in re.findall(r"[A-Za-z-]+", text) if w]
+        lemmatized = []
+        
+        if mode == "spacy" and nlp_spacy:
+            doc = nlp_spacy(" ".join(cleaned[:100000]))
+            lemmatized = [t.lemma_.lower() for t in doc if t.lemma_.isalpha()]
+        else:
+            l = WordNetLemmatizer()
+            lemmatized = [l.lemmatize(w) for w in cleaned]
 
-    bar.progress(80)
-    seen, final = set(), []
-    stops = set(stopwords.words('english'))
-    
-    for w in lemmatized:
-        if len(w) >= min_len and w not in stops and (not filter_set or w not in filter_set) and w not in seen:
-            seen.add(w)
-            final.append(w)
-    
-    bar.progress(100)
-    time.sleep(0.2)
-    bar.empty()
-    return final
+        seen, final = set(), []
+        stops = set(stopwords.words('english'))
+        for w in lemmatized:
+            if len(w) >= min_len and w not in stops and (not filter_set or w not in filter_set) and w not in seen:
+                seen.add(w)
+                final.append(w)
+        return final
 
 def copy_btn(text):
-    safe = json.dumps(text)
+    safe_text = json.dumps(text)
     components.html(f"""
-    <button onclick="navigator.clipboard.writeText({safe}).then(()=>this.innerHTML='✅ 已复制').catch(()=>this.innerHTML='❌ 失败')" 
-    style="width:100%;padding:10px;background:linear-gradient(135deg,#2DD4BF,#0F766E);color:white;border:none;border-radius:12px;font-weight:bold;cursor:pointer;">
-    📋 一键复制结果
-    </button>""", height=50)
+    <div style="display:flex; justify-content:center;">
+        <button id="cbtn" onclick="copy()" style="
+            background: linear-gradient(135deg, #0f172a 0%, #334155 100%);
+            color: white; border: none; padding: 10px 20px; border-radius: 8px;
+            font-family: sans-serif; font-weight: bold; cursor: pointer; width: 100%;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        ">📋 一键复制结果</button>
+    </div>
+    <script>
+    function copy() {{
+        navigator.clipboard.writeText({safe_text});
+        document.getElementById("cbtn").innerText = "✅ 已复制！";
+        setTimeout(() => {{ document.getElementById("cbtn").innerText = "📋 一键复制结果"; }}, 2000);
+    }}
+    </script>
+    """, height=50)
 
-# ------------------ 3. 布局实现 ------------------
+# ------------------ 3. 页面布局 ------------------
 
-# === 侧边栏 ===
+# 侧边栏
 with st.sidebar:
     st.markdown("""
-        <div class="logo-box">
-            <div class="logo-icon">V</div>
-            <div class="logo-text">VocabMaster</div>
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:20px; padding:10px;">
+            <div style="width:32px; height:32px; background:#0f172a; color:white; border-radius:6px; display:flex; align-items:center; justify-content:center; font-weight:bold;">V</div>
+            <h3 style="margin:0; font-size:18px;">VocabMaster</h3>
         </div>
     """, unsafe_allow_html=True)
-    
-    nav = st.radio("NAV", ["⚡ 智能工作台", "📚 公共词书库", "👤 个人中心"], label_visibility="collapsed")
+    menu = st.radio("MAIN MENU", ["⚡ 智能工作台", "📚 公共词书库", "👤 个人中心"], label_visibility="collapsed")
     st.markdown("---")
-    st.info("💡 **Pro Tip**: 字幕文件直接拖入，无需转换格式。")
+    st.info("📢 字幕文件无需转换，直接拖入即可。")
 
-# === 顶部 Glass Header ===
+# 顶部导航
 st.markdown("""
-<div class="glass-header">
-    <div>
-        <h3 style="margin:0; font-weight:800; color:#0f172a;">Dashboard</h3>
-        <p style="margin:0; font-size:12px; color:#64748b;">Welcome back, User</p>
-    </div>
-    <div style="display:flex; align-items:center; gap:12px;">
-        <span style="background:white; padding:4px 12px; border-radius:20px; font-size:12px; font-weight:bold; color:#0F766E; border:1px solid #ccfbf1;">🚀 Pro Plan</span>
-        <img src="https://api.dicebear.com/7.x/notionists/svg?seed=Alex" style="width:36px; height:36px; border-radius:50%; border:2px solid white; box-shadow:0 2px 8px rgba(0,0,0,0.1);">
-    </div>
+<div class="top-nav">
+    <div style="font-weight:700; color:#334155;">Dashboard</div>
+    <div style="font-size:12px; background:white; padding:4px 10px; border-radius:20px; border:1px solid #e2e8f0;">User: Free Plan</div>
 </div>
 """, unsafe_allow_html=True)
 
-# === 核心页面 ===
-if "工作台" in nav:
+# === ⚡ 智能工作台 ===
+if "工作台" in menu:
     
-    # 资源导航 (新手引导)
-    with st.expander("📖 新手指南 & 资源库 (展开)", expanded=False):
-        t1, t2, t3 = st.tabs(["💡 操作流程", "🎬 影视资源", "📚 阅读资源"])
+    # 1. 资源导航 (完整使用你提供的内容)
+    with st.expander("📖 新手指南 & 宝藏资源库 (点击展开)", expanded=False):
+        t1, t2, t3, t4 = st.tabs(["💡 操作指引", "🎬 影视字幕", "📚 原著阅读", "🎧 听力素材"])
+        
         with t1:
-            st.markdown("#### 🚀 四步制作专属词书")
-            st.markdown("1. **配置**: 选择左侧过滤库（去除简单词）。\n2. **输入**: 粘贴文本或拖入字幕文件。\n3. **提取**: 点击提取按钮，AI 分析词形。\n4. **导出**: 复制结果到扇贝/Anki。")
-        with t2:
-            c1, c2 = st.columns(2)
-            c1.markdown("- **[Assrt (伪射手)](https://assrt.net/)**: 字幕最全。\n- **[Zimuku](http://zimuku.org/)**: 更新快。")
-            c2.markdown("- **[OpenSubtitles](https://www.opensubtitles.org/)**: 英文原版。")
-        with t3:
-            st.markdown("- **[Project Gutenberg](https://www.gutenberg.org/)**: 免费公版书。")
-
-    # 主工作区：非对称布局 (4:8)
-    col_left, col_right = st.columns([4, 8], gap="large")
-
-    # 左侧：配置卡片
-    with col_left:
-        # 使用 CSS 类包装容器
-        with st.container():
-            st.markdown('<div class="card-container">', unsafe_allow_html=True)
-            st.markdown("##### 🛠️ 提取配置 (Configuration)")
-            
-            st.caption("AI 引擎")
-            eng = st.selectbox("Engine", ["nltk (Fast)", "spacy (Accurate)"], label_visibility="collapsed")
-            
-            st.caption("排序方式")
-            sort = st.selectbox("Sort", ["按文本顺序", "A-Z 排序", "随机打乱"], label_visibility="collapsed")
-            
-            st.caption("最短词长")
-            min_len = st.slider("Min Length", 2, 15, 3, label_visibility="collapsed")
-            
-            st.markdown("---")
-            st.markdown("##### 🛡️ 熟词屏蔽 (Filter)")
-            presets = st.multiselect("预置库", PRESET_WORDLISTS.keys(), default=[], label_visibility="collapsed", placeholder="选择要屏蔽的等级...")
-            
-            st.caption("上传自定义屏蔽词表")
-            filter_f = st.file_uploader("Custom Filter", type=['txt'], label_visibility="collapsed")
-            
-            st.markdown('</div>', unsafe_allow_html=True) # End card
-
-    # 右侧：输入卡片
-    with col_right:
-        with st.container():
-            st.markdown('<div class="card-container" style="min-height:500px;">', unsafe_allow_html=True)
-            
-            # Header inside card
             st.markdown("""
-            <div style="display:flex; justify-content:space-between; margin-bottom:16px;">
-                <span style="font-weight:700; color:#334155;">📝 输入源 (Input Source)</span>
-                <span style="font-size:12px; background:#f1f5f9; padding:2px 8px; rounded:4px;">支持 .txt .srt .docx</span>
+            <div style="padding:5px;">
+            <h5 style="margin-top:0">🚀 四步制作专属词书：</h5>
+            <ol>
+                <li><b>准备素材</b>：从右侧标签页下载 <code>.srt</code> 字幕或 <code>.txt</code> 电子书。</li>
+                <li><b>清洗设置</b>：在下方【设置提取规则】中，选择<b>“预置熟词库”</b>或上传自定义熟词表（非常重要！能屏蔽掉 is, the 等简单词）。</li>
+                <li><b>智能提取</b>：将文件拖入上传区，AI 自动完成去重、词形还原（Run/Ran/Running → Run）。</li>
+                <li><b>闭环学习</b>：点击生成的<b>“一键复制”</b>按钮，跳转扇贝网批量制卡，或导出词书。</li>
+            </ol>
             </div>
             """, unsafe_allow_html=True)
             
-            # 文本域 + 上传组件 视觉融合
-            txt_in = st.text_area("Input", height=200, placeholder="在此直接粘贴文章、字幕文本...\n或者使用下方的文件上传功能。", label_visibility="collapsed")
-            files_in = st.file_uploader("File Upload", type=['txt','srt','ass','docx'], accept_multiple_files=True, label_visibility="collapsed")
+        with t2:
+            st.info("💡 字幕文件是提取口语词汇的最佳材料。下载后无需转换，直接拖入本工具。")
+            c1, c2 = st.columns(2)
+            c1.markdown("🎯 **[伪射手网 (Assrt)](https://assrt.net/)**\n<small>老牌站点，资源最全，支持中英双语。</small>", unsafe_allow_html=True)
+            c1.markdown("📺 **[字幕库 (Zimuku)](http://zimuku.org/)**\n<small>美剧、日剧更新速度极快。</small>", unsafe_allow_html=True)
+            c1.markdown("⚡ **[Addic7ed](https://www.addic7ed.com/)**\n<small>美剧生肉更新最快的地方，适合高阶学习者。</small>", unsafe_allow_html=True)
             
+            c2.markdown("💎 **[SubHD](https://subhd.tv/)**\n<small>界面清爽，高清影视字幕首选。</small>", unsafe_allow_html=True)
+            c2.markdown("🌎 **[OpenSubtitles](https://www.opensubtitles.org/)**\n<small>全球最大字幕库，寻找纯英文字幕首选。</small>", unsafe_allow_html=True)
+            c2.markdown("🎞️ **[YIFY Subtitles](https://yifysubtitles.ch/)**\n<small>专门针对电影的高质量英文字幕。</small>", unsafe_allow_html=True)
+
+        with t3:
+            st.success("📚 推荐下载 .txt 或 .epub (需转txt) 格式。")
+            c1, c2 = st.columns(2)
+            c1.markdown("🏛️ **[Project Gutenberg](https://www.gutenberg.org/)**\n<small>拥有7万+免费公版电子书，英文原著的大宝库。</small>", unsafe_allow_html=True)
+            c1.markdown("📖 **[ManyBooks](https://manybooks.net/)**\n<small>排版精美，分类详细，下载体验好。</small>", unsafe_allow_html=True)
+            
+            c2.markdown("📰 **[Global Times](https://www.globaltimes.cn/)**\n<small>国产英文媒体，用词贴近时政，适合备考。</small>", unsafe_allow_html=True)
+            c2.markdown("🧠 **[Scientific American](https://www.scientificamerican.com/)**\n<small>高阶科普文章，托福/雅思/GRE 阅读同源素材。</small>", unsafe_allow_html=True)
+
+        with t4:
+            st.warning("🎧 技巧：下载 Transcript (文稿) 提取单词，学完再去听。")
+            c1, c2 = st.columns(2)
+            c1.markdown("🔴 **[TED Talks](https://www.ted.com/)**\n<small>思想盛宴，每个视频都自带多语言文稿。</small>", unsafe_allow_html=True)
+            c1.markdown("🇺🇸 **[VOA Learning English](https://learningenglish.voanews.com/)**\n<small>经典分级听力材料，含纯正文稿。</small>", unsafe_allow_html=True)
+            
+            c2.markdown("🇬🇧 **[BBC Learning English](https://www.bbc.co.uk/learningenglish/)**\n<small>英式英语金牌教程，6 Minute English 必听。</small>", unsafe_allow_html=True)
+            c2.markdown("🎓 **[Coursera](https://www.coursera.org/)**\n<small>学习专业课（计算机/商科）的最好方式。</small>", unsafe_allow_html=True)
+
+    # 2. 主操作区 (左右分栏，原生卡片)
+    if 'result_words' not in st.session_state: st.session_state.result_words = []
+    
+    col_conf, col_input = st.columns([1, 2], gap="medium")
+
+    # 左侧：配置卡片
+    with col_conf:
+        with st.container(border=True):
+            st.markdown("##### 🛠️ 提取配置")
+            nlp_mode = st.selectbox("AI 引擎", ["nltk (快速)", "spacy (精准)"])
+            sort_order = st.selectbox("排序", ["按文本出现顺序", "A-Z 排序", "随机打乱"])
+            min_len = st.slider("最短词长", 2, 15, 3)
+            
+            st.divider()
+            st.markdown("##### 🛡️ 熟词屏蔽")
+            selected_presets = st.multiselect("预置库", PRESET_WORDLISTS.keys(), default=[])
+            filter_file = st.file_uploader("自定义屏蔽表 (.txt)", type=['txt'])
+
+    # 右侧：输入卡片
+    with col_input:
+        with st.container(border=True):
+            st.markdown("""
+            <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                <b>📄 输入源 (Input Source)</b>
+                <span style="font-size:12px; color:#64748b; background:#f1f5f9; padding:2px 6px; border-radius:4px;">支持 .txt .srt .docx</span>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            tab_txt, tab_file = st.tabs(["✍️ 粘贴文本", "📂 上传文件"])
+            
+            with tab_txt:
+                input_text = st.text_area("粘贴区域", height=250, placeholder="在此直接粘贴文章、字幕文本...", label_visibility="collapsed")
+            with tab_file:
+                uploaded_files = st.file_uploader("拖拽区域", type=['txt','srt','ass','docx'], accept_multiple_files=True, label_visibility="collapsed")
+
             st.markdown("<br>", unsafe_allow_html=True)
-            
-            # Action Bar
-            c_btn, c_info = st.columns([1, 1])
-            with c_btn:
-                run = st.button("🚀 开始智能提取 (Analyze)", type="primary")
-            
-            st.markdown('</div>', unsafe_allow_html=True) # End card
-            
-            # 处理逻辑
-            if run:
-                raw_text = txt_in
-                if files_in:
-                    for f in files_in: raw_text += "\n" + extract_text_from_bytes(f, f.name)
-                
-                if not raw_text.strip():
-                    st.toast("❌ 请先输入内容！")
-                else:
-                    # 构建过滤集
-                    f_set = set()
-                    for p in presets:
-                        with open(PRESET_WORDLISTS[p], 'r', encoding='utf-8') as f: f_set.update(f.read().splitlines())
-                    if filter_f:
-                        f_set.update(filter_f.getvalue().decode('utf-8', errors='ignore').splitlines())
-                    
-                    # 运行
-                    res = process_words(raw_text, "spacy" if "spacy" in eng else "nltk", min_len, f_set)
-                    if sort == "A-Z 排序": res.sort()
-                    elif sort == "随机打乱": random.shuffle(res)
-                    
-                    st.session_state.res = res
-                    st.rerun()
+            start_btn = st.button("🚀 开始智能提取", type="primary")
 
-    # 结果展示区 (Full Width)
-    if 'res' in st.session_state and st.session_state.res:
-        st.markdown('<div class="card-container">', unsafe_allow_html=True)
-        st.markdown(f"### 🎉 提取结果 ({len(st.session_state.res)} 词)")
+    # 逻辑处理
+    if start_btn:
+        full_text = input_text
+        if uploaded_files:
+            for f in uploaded_files:
+                full_text += "\n" + extract_text_from_bytes(f, f.name)
         
-        final_str = "\n".join(st.session_state.res)
-        st.text_area("Result", final_str, height=150)
-        
-        c1, c2, c3 = st.columns([1, 1, 1])
-        with c1: copy_btn(final_str)
-        with c2: st.download_button("📦 下载结果 (.txt)", final_str, "vocab.txt", use_container_width=True)
-        with c3:
-            with st.popover("☁️ 发布到社区库", use_container_width=True):
-                with st.form("pub"):
-                    name = st.text_input("Filename (.txt)", f"list_{int(time.time())}.txt")
-                    title = st.text_input("Title")
-                    desc = st.text_area("Description")
-                    if st.form_submit_button("Submit"):
-                        if name.endswith(".txt"): save_to_github_library(name, final_str, title, desc)
-        st.markdown('</div>', unsafe_allow_html=True)
+        if not full_text.strip():
+            st.warning("⚠️ 请先输入文本或上传文件")
+        else:
+            filter_set = set()
+            for p in selected_presets:
+                if os.path.exists(PRESET_WORDLISTS[p]):
+                    with open(PRESET_WORDLISTS[p], 'r', encoding='utf-8') as f: filter_set.update(f.read().splitlines())
+            if filter_file:
+                filter_set.update(filter_file.getvalue().decode('utf-8', errors='ignore').splitlines())
+            
+            mode_key = "spacy" if "spacy" in nlp_mode else "nltk"
+            words = process_words(full_text, mode_key, min_len, filter_set)
+            
+            if sort_order == "A-Z 排序": words.sort()
+            elif sort_order == "随机打乱": random.shuffle(words)
+            
+            st.session_state.result_words = words
+            st.rerun()
 
-elif "词书库" in nav:
-    st.markdown('<div class="card-container">', unsafe_allow_html=True)
-    
-    # 过滤器 + 搜索
-    c_filter, c_search = st.columns([2, 1])
-    with c_filter:
-        st.write("🏷️ **标签筛选**")
-        # 视觉上的 Tabs
-        t_all, t_uni, t_hs, t_int = st.tabs(["全部", "大学/考研", "高中/高考", "兴趣/影视"])
-    with c_search:
-        q = st.text_input("Search", placeholder="🔍 搜索...", label_visibility="collapsed")
-    
-    # 动态读取 Library
+    # 3. 结果展示
+    if st.session_state.result_words:
+        st.markdown("<br>", unsafe_allow_html=True)
+        with st.container(border=True):
+            words = st.session_state.result_words
+            content_str = "\n".join(words)
+            
+            st.markdown(f"### 🎉 提取结果 (共 {len(words)} 词)")
+            st.text_area("Result", value=content_str, height=200, label_visibility="collapsed")
+            
+            c1, c2, c3 = st.columns([1, 1, 1])
+            with c1: copy_btn(content_str)
+            with c2: st.download_button("📦 下载 (.txt)", content_str, "vocab.txt", "text/plain", use_container_width=True)
+            with c3:
+                with st.popover("☁️ 发布到社区库", use_container_width=True):
+                    with st.form("pub_form"):
+                        name = st.text_input("文件名 (英文, e.g. friends_s1.txt)", f"list_{int(time.time())}.txt")
+                        title = st.text_input("标题")
+                        desc = st.text_area("描述")
+                        if st.form_submit_button("发布"):
+                            if name.endswith(".txt"): save_to_github_library(name, content_str, title, desc)
+                            else: st.error("文件名需以 .txt 结尾")
+
+# === 📚 公共词书库 ===
+elif "词书库" in menu:
+    # 顶部工具栏卡片
+    with st.container(border=True):
+        c_search, c_filter = st.columns([2, 1])
+        q = c_search.text_input("搜索", placeholder="🔍 搜索书名...", label_visibility="collapsed")
+        c_filter.multiselect("筛选", ["考研", "雅思", "托福"], label_visibility="collapsed", placeholder="标签筛选")
+
+    # 动态读取 Library (修复点：从本地目录读取)
     try:
-        with open(os.path.join(LIBRARY_DIR, "info.json"), "r", encoding="utf-8") as f: meta = json.load(f)
-    except: meta = {}
+        with open(os.path.join(LIBRARY_DIR, "info.json"), "r", encoding="utf-8") as f: book_info = json.load(f)
+    except: book_info = {}
     
     files = [f for f in os.listdir(LIBRARY_DIR) if f.endswith(".txt")]
-    visible = [f for f in files if q.lower() in f.lower() or q.lower() in meta.get(f, {}).get("title", "").lower()]
+    visible = [f for f in files if q.lower() in f.lower() or q.lower() in book_info.get(f, {}).get("title", "").lower()]
     
-    st.markdown("<br>", unsafe_allow_html=True)
     if not visible:
-        st.warning("📭 暂无数据。")
+        st.info("📭 暂无数据，请先去工作台发布词书。")
     else:
+        st.markdown("<br>", unsafe_allow_html=True)
         cols = st.columns(4)
-        colors = ["#FDE68A", "#A7F3D0", "#BFDBFE", "#FECACA", "#DDD6FE"]
-        text_colors = ["#451a03", "#064e3b", "#1e3a8a", "#7f1d1d", "#4c1d95"]
+        colors = ["#fef3c7", "#d1fae5", "#dbeafe", "#fee2e2", "#f3e8ff"]
+        txt_colors = ["#92400e", "#065f46", "#1e40af", "#991b1b", "#6b21a8"]
         
         for i, f in enumerate(visible):
-            info = meta.get(f, {})
-            title = info.get("title", f)
-            desc = info.get("desc", "No description")
-            c_bg = colors[i % 5]
-            c_tx = text_colors[i % 5]
+            meta = book_info.get(f, {})
+            title = meta.get("title", f)
+            desc = meta.get("desc", "无描述")
+            idx = i % 5
             
             with cols[i % 4]:
                 st.markdown(f"""
-                <div class="book-3d" style="background-color:{c_bg}; color:{c_tx};">
-                    <div class="book-texture"></div>
-                    <h3 style="margin:0; font-size:18px; line-height:1.2;">{title}</h3>
-                    <p style="font-size:12px; opacity:0.8; margin-top:8px;">{desc[:30]}...</p>
+                <div class="book-3d" style="background-color:{colors[idx]}; color:{txt_colors[idx]};">
+                    <h4 style="margin:0; font-size:16px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; width:100%;">{title}</h4>
+                    <p style="font-size:12px; opacity:0.8; margin-top:5px; height:36px; overflow:hidden;">{desc[:40]}...</p>
                 </div>
                 """, unsafe_allow_html=True)
                 
-                # 操作区
-                with st.expander("下载/预览"):
+                with st.expander("操作"):
                     try:
                         with open(os.path.join(LIBRARY_DIR, f), 'r', encoding='utf-8') as _f: content = _f.read()
-                        st.download_button("⬇️ Download", content, f)
-                        st.code(content[:200] + "...", language="text")
-                    except: st.error("Error reading file")
-    
-    st.markdown('</div>', unsafe_allow_html=True)
+                        st.caption(f"文件名: {f}")
+                        st.download_button("⬇️ 下载", content, f)
+                        copy_btn(content)
+                    except: st.error("文件读取失败")
 
 else:
-    st.info("🚧 个人中心正在开发中...")
+    st.info("🚧 个人中心开发中...")
