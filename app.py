@@ -351,7 +351,7 @@ if "工作台" in menu:
             with tab_txt:
                 input_text = st.text_area("粘贴区域", height=250, placeholder="在此直接粘贴文章、字幕文本...", label_visibility="collapsed")
             with tab_file:
-                uploaded_files = st.file_uploader("拖拽区域", type=['txt','srt','ass','docx'], accept_multiple_files=True, label_visibility="collapsed")
+                uploaded_files = st.file_uploader("拖拽区域", type=['txt','srt','ass','docx','pdf'], accept_multiple_files=True, label_visibility="collapsed")
 
             st.markdown("<br>", unsafe_allow_html=True)
             start_btn = st.button("🚀 开始智能提取", type="primary")
