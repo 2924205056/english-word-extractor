@@ -407,7 +407,7 @@ if "工作台" in menu:
             
             input_text = st.text_area("Input", height=200, placeholder="在此粘贴文章、字幕文本、歌词...\n或者点击下方虚线框上传文件", label_visibility="collapsed")
             
-            uploaded_files = st.file_uploader("或拖拽文件到此处 (支持 .srt, .docx, .txt)", type=['txt','srt','ass','docx'], accept_multiple_files=True, label_visibility="collapsed")
+            uploaded_files = st.file_uploader("或拖拽文件到此处 (支持 .srt, .docx, .txt, .PDF)", type=['txt','srt','ass','docx'], accept_multiple_files=True, label_visibility="collapsed")
 
             col_act_1, col_act_2 = st.columns([3, 1])
             with col_act_2:
