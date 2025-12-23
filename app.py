@@ -222,32 +222,34 @@ def process_words(text, mode, min_len, filter_set=None):
         
         final_lemmas = []
         
-        # === 方案 A: Spacy (更厉害的模式) ===
+        # === Spacy 模式 ===
         if mode == "spacy" and nlp_spacy:
-            # 1. 增加最大长度限制，防止内存溢出
+            # 1. 调大一点上限 (可选，防止个别稍大的块报错)
             nlp_spacy.max_length = 2000000 
             
-            # 2. 直接处理原文本 (保留上下文，不要先正则清洗！)
-            # Doc 也是通过生成器处理大文本
-            doc = nlp_spacy(text)
+            # 2. 【关键修改】分块处理
+            # 每次处理 100,000 个字符，避免溢出
+            chunk_size = 100000 
+            text_chunks = [text[i:i + chunk_size] for i in range(0, len(text), chunk_size)]
             
-            for token in doc:
-                # 过滤逻辑：
-                # is_alpha: 必须是字母
-                # not is_stop: 不是停用词 (the, is, at...)
-                # pos_ in [...]: 只保留实词 (名/动/形/副) -> 这是 NLTK 做不到的精准过滤
-                if (token.is_alpha and 
-                    not token.is_stop and 
-                    len(token.text) >= min_len and
-                    token.pos_ in ['NOUN', 'VERB', 'ADJ', 'ADV']):
-                    
-                    lemma = token.lemma_.lower()
-                    
-                    # 二次过滤用户词表
-                    if filter_set and lemma in filter_set:
-                        continue
+            progress_bar = st.progress(0)
+            
+            for i, chunk in enumerate(text_chunks):
+                # 更新进度条
+                progress_bar.progress((i + 1) / len(text_chunks))
+                
+                doc = nlp_spacy(chunk)
+                for token in doc:
+                    if (token.is_alpha and 
+                        not token.is_stop and 
+                        len(token.text) >= min_len and
+                        token.pos_ in ['NOUN', 'VERB', 'ADJ', 'ADV']):
                         
-                    final_lemmas.append(lemma)
+                        lemma = token.lemma_.lower()
+                        if filter_set and lemma in filter_set: continue
+                        final_lemmas.append(lemma)
+            
+            progress_bar.empty() # 处理完清除进度条
 
         # === 方案 B: NLTK (快速兜底模式) ===
         else:
