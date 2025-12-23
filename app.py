@@ -217,54 +217,63 @@ def extract_text_from_bytes(file_obj, filename):
     except: return ""
 
 def process_words(text, mode, min_len, filter_set=None):
-    with st.spinner(f"AI ({mode}) 正在深度分析语义..."):
+    with st.spinner(f"正在词性还原中..."):
         time.sleep(0.5)
         
         final_lemmas = []
         
-        # === Spacy 模式 ===
+        # === Scheme A: Spacy (High Accuracy Mode) ===
         if mode == "spacy" and nlp_spacy:
-            # 1. 调大一点上限 (可选，防止个别稍大的块报错)
+            # 1. Increase limit slightly
             nlp_spacy.max_length = 2000000 
             
-            # 2. 【关键修改】分块处理
-            # 每次处理 100,000 个字符，避免溢出
+            # 2. Chunking to prevent memory errors
             chunk_size = 100000 
             text_chunks = [text[i:i + chunk_size] for i in range(0, len(text), chunk_size)]
             
             progress_bar = st.progress(0)
             
             for i, chunk in enumerate(text_chunks):
-                # 更新进度条
                 progress_bar.progress((i + 1) / len(text_chunks))
                 
                 doc = nlp_spacy(chunk)
+                
                 for token in doc:
+                    # Basic filtering
                     if (token.is_alpha and 
                         not token.is_stop and 
                         len(token.text) >= min_len and
                         token.pos_ in ['NOUN', 'VERB', 'ADJ', 'ADV']):
                         
                         lemma = token.lemma_.lower()
-                        if filter_set and lemma in filter_set: continue
+                        
+                        # [CRITICAL FIX] 强制正则校验：必须全是 a-z
+                        if not re.match(r"^[a-z]+$", lemma):
+                            continue
+
+                        # User Filter
+                        if filter_set and lemma in filter_set:
+                            continue
+                            
                         final_lemmas.append(lemma)
             
-            progress_bar.empty() # 处理完清除进度条
+            progress_bar.empty() 
 
-        # === 方案 B: NLTK (快速兜底模式) ===
+        # === Scheme B: NLTK (Fast / Fallback Mode) ===
         else:
-            # NLTK 保持原有逻辑，适合处理超大文件或低配机器
+            # NLTK logic (already uses Regex [A-Za-z], so it's safe)
             cleaned = [re.sub(r'[^a-z]', '', w.lower()) for w in re.findall(r"[A-Za-z-]+", text) if w]
             l = WordNetLemmatizer()
-            # NLTK 默认 lemmatize 假设是名词，所以效果一般
             lemmatized = [l.lemmatize(w) for w in cleaned]
             
             stops = set(stopwords.words('english'))
             for w in lemmatized:
+                # Double check specifically for NLTK just in case
                 if len(w) >= min_len and w not in stops and (not filter_set or w not in filter_set):
-                    final_lemmas.append(w)
+                    if re.match(r"^[a-z]+$", w): 
+                        final_lemmas.append(w)
 
-        # 去重并保持顺序 (Python 3.7+ 字典保持插入顺序)
+        # Remove duplicates
         return list(dict.fromkeys(final_lemmas))
 def copy_btn(text):
     safe_text = json.dumps(text)
