@@ -53,10 +53,20 @@ def download_nltk_resources():
 @st.cache_resource
 def load_spacy_model():
     if _HAS_SPACY:
-        try: return spacy.load("en_core_web_sm", disable=["ner", "parser"])
-        except Exception: return None
+        try:
+            # 优先尝试加载高精度 Transformer 模型 (更厉害!)
+            # 注意: 需要先在终端运行: python -m spacy download en_core_web_trf
+            return spacy.load("en_core_web_trf")
+        except OSError:
+            try:
+                # 降级方案: 中等模型
+                return spacy.load("en_core_web_md")
+            except OSError:
+                # 保底方案: 小模型
+                return spacy.load("en_core_web_sm", disable=["ner", "parser"])
+        except Exception:
+            return None
     return None
-
 download_nltk_resources()
 nlp_spacy = load_spacy_model()
 
@@ -207,26 +217,53 @@ def extract_text_from_bytes(file_obj, filename):
     except: return ""
 
 def process_words(text, mode, min_len, filter_set=None):
-    with st.spinner("AI 正在分析语义与词形..."):
+    with st.spinner(f"AI ({mode}) 正在深度分析语义..."):
         time.sleep(0.5)
-        cleaned = [re.sub(r'[^a-z]', '', w.lower()) for w in re.findall(r"[A-Za-z-]+", text) if w]
-        lemmatized = []
         
+        final_lemmas = []
+        
+        # === 方案 A: Spacy (更厉害的模式) ===
         if mode == "spacy" and nlp_spacy:
-            doc = nlp_spacy(" ".join(cleaned[:100000]))
-            lemmatized = [t.lemma_.lower() for t in doc if t.lemma_.isalpha()]
+            # 1. 增加最大长度限制，防止内存溢出
+            nlp_spacy.max_length = 2000000 
+            
+            # 2. 直接处理原文本 (保留上下文，不要先正则清洗！)
+            # Doc 也是通过生成器处理大文本
+            doc = nlp_spacy(text)
+            
+            for token in doc:
+                # 过滤逻辑：
+                # is_alpha: 必须是字母
+                # not is_stop: 不是停用词 (the, is, at...)
+                # pos_ in [...]: 只保留实词 (名/动/形/副) -> 这是 NLTK 做不到的精准过滤
+                if (token.is_alpha and 
+                    not token.is_stop and 
+                    len(token.text) >= min_len and
+                    token.pos_ in ['NOUN', 'VERB', 'ADJ', 'ADV']):
+                    
+                    lemma = token.lemma_.lower()
+                    
+                    # 二次过滤用户词表
+                    if filter_set and lemma in filter_set:
+                        continue
+                        
+                    final_lemmas.append(lemma)
+
+        # === 方案 B: NLTK (快速兜底模式) ===
         else:
+            # NLTK 保持原有逻辑，适合处理超大文件或低配机器
+            cleaned = [re.sub(r'[^a-z]', '', w.lower()) for w in re.findall(r"[A-Za-z-]+", text) if w]
             l = WordNetLemmatizer()
+            # NLTK 默认 lemmatize 假设是名词，所以效果一般
             lemmatized = [l.lemmatize(w) for w in cleaned]
+            
+            stops = set(stopwords.words('english'))
+            for w in lemmatized:
+                if len(w) >= min_len and w not in stops and (not filter_set or w not in filter_set):
+                    final_lemmas.append(w)
 
-        seen, final = set(), []
-        stops = set(stopwords.words('english'))
-        for w in lemmatized:
-            if len(w) >= min_len and w not in stops and (not filter_set or w not in filter_set) and w not in seen:
-                seen.add(w)
-                final.append(w)
-        return final
-
+        # 去重并保持顺序 (Python 3.7+ 字典保持插入顺序)
+        return list(dict.fromkeys(final_lemmas))
 def copy_btn(text):
     safe_text = json.dumps(text)
     components.html(f"""
