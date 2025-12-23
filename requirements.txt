@@ -2,7 +2,7 @@ streamlit
 nltk
 python-docx
 chardet
-spacy
 PyGithub
+spacy
+# 下面这一行是关键：直接通过 URL 安装 Spacy 的模型包
 https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0.tar.gz
-
