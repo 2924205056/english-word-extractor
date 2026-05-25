@@ -1,5 +1,6 @@
 import streamlit as st
 import io
+import csv
 import re
 import chardet
 import os
@@ -13,7 +14,7 @@ from github import Github
 import nltk
 from nltk.stem import WordNetLemmatizer
 from nltk.corpus import wordnet, stopwords
-from nltk import pos_tag
+from nltk import pos_tag, sent_tokenize
 from docx import Document
 from PyPDF2 import PdfReader
 
@@ -224,6 +225,25 @@ def get_wordnet_pos(treebank_tag):
     if treebank_tag.startswith('R'): return wordnet.ADV
     return wordnet.NOUN
 
+def extract_examples(text, word_counts):
+    """为每个词提取第一条包含它的例句。"""
+    try:
+        sentences = sent_tokenize(text)
+    except:
+        return {}
+    examples = {}
+    words_needed = set(w for w in word_counts if w not in examples)
+    for sent in sentences:
+        if not words_needed:
+            break
+        sent_lower = sent.lower()
+        for word in list(words_needed):
+            if re.search(r'\b' + re.escape(word) + r'\b', sent_lower):
+                # 截断过长的句子
+                examples[word] = sent[:200] + ("…" if len(sent) > 200 else "")
+                words_needed.discard(word)
+    return examples
+
 def process_words(text, mode, min_len, filter_set=None):
     with st.spinner(f"正在词性还原中..."):
         word_counts = {}
@@ -233,7 +253,6 @@ def process_words(text, mode, min_len, filter_set=None):
         if mode == "spacy" and nlp_spacy:
             nlp_spacy.max_length = 2000000
 
-            # 按句子边界分块，避免在单词中间切断
             chunk_size = 100000
             text_chunks = [text[i:i + chunk_size] for i in range(0, len(text), chunk_size)]
 
@@ -275,8 +294,15 @@ def process_words(text, mode, min_len, filter_set=None):
                     continue
                 word_counts[lemma] = word_counts.get(lemma, 0) + 1
 
-        # 按词频降序返回 [(word, count), ...]
-        return sorted(word_counts.items(), key=lambda x: x[1], reverse=True)
+        # 按词频降序排序
+        sorted_words = sorted(word_counts.items(), key=lambda x: x[1], reverse=True)
+
+    # 提取例句（独立 spinner，避免干扰主流程）
+    with st.spinner("正在匹配例句..."):
+        examples = extract_examples(text, dict(sorted_words))
+
+    # 返回 [(word, count, sentence), ...]
+    return [(w, c, examples.get(w, "")) for w, c in sorted_words]
 def copy_btn(text):
     safe_text = json.dumps(text)
     components.html(f"""
@@ -438,18 +464,29 @@ if "工作台" in menu:
         st.markdown("<br>", unsafe_allow_html=True)
         with st.container(border=True):
             words = st.session_state.result_words
-            # 展示格式：word (count)
-            display_str = "\n".join([f"{w} ({c})" for w, c in words])
-            # 纯单词列表，用于复制/导出/发布
-            plain_str = "\n".join([w for w, _ in words])
+            # 展示格式：word (count)  — example sentence
+            display_str = "\n".join([
+                f"{w} ({c})" + (f"  — {s}" if s else "")
+                for w, c, s in words
+            ])
+            # 纯单词列表
+            plain_str = "\n".join([w for w, _, _ in words])
+            # CSV 导出（兼容 Anki：word, count, sentence）
+            csv_buf = io.StringIO()
+            writer = csv.writer(csv_buf)
+            writer.writerow(["word", "frequency", "sentence"])
+            for w, c, s in words:
+                writer.writerow([w, c, s])
+            csv_data = csv_buf.getvalue()
 
             st.markdown(f"### 🎉 提取结果 (共 {len(words)} 词)")
             st.text_area("Result", value=display_str, height=200, label_visibility="collapsed")
 
-            c1, c2, c3 = st.columns([1, 1, 1])
+            c1, c2, c3, c4 = st.columns([1, 1, 1, 1])
             with c1: copy_btn(plain_str)
-            with c2: st.download_button("📦 下载 (.txt)", plain_str, "vocab.txt", "text/plain", use_container_width=True)
-            with c3:
+            with c2: st.download_button("📦 下载 .txt", plain_str, "vocab.txt", "text/plain", use_container_width=True)
+            with c3: st.download_button("📊 下载 CSV", csv_data, "vocab.csv", "text/csv", use_container_width=True)
+            with c4:
                 with st.popover("☁️ 发布到社区库", use_container_width=True):
                     with st.form("pub_form"):
                         name = st.text_input("文件名 (英文, e.g. friends_s1.txt)", f"list_{int(time.time())}.txt")
