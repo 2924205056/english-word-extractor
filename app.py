@@ -1,8 +1,6 @@
 import streamlit as st
 import io
 import re
-import zipfile
-import math
 import chardet
 import os
 import json
@@ -201,7 +199,6 @@ def save_to_github_library(filename, content, title, desc):
         
         with open(local_info_path, "w", encoding="utf-8") as f: json.dump(local_info, f, indent=2, ensure_ascii=False)
 
-        time.sleep(1)
         st.rerun()
 
     except Exception as e:
@@ -216,65 +213,66 @@ def extract_text_from_bytes(file_obj, filename):
         return raw.decode(chardet.detect(raw)['encoding'] or 'utf-8', errors='ignore')
     except: return ""
 
+def get_wordnet_pos(treebank_tag):
+    """将 Penn Treebank POS 标签映射为 WordNet POS，用于精准词形还原。"""
+    if treebank_tag.startswith('J'): return wordnet.ADJ
+    if treebank_tag.startswith('V'): return wordnet.VERB
+    if treebank_tag.startswith('R'): return wordnet.ADV
+    return wordnet.NOUN
+
 def process_words(text, mode, min_len, filter_set=None):
     with st.spinner(f"正在词性还原中..."):
-        time.sleep(0.5)
-        
-        final_lemmas = []
-        
+        word_counts = {}
+        stops = set(stopwords.words('english'))
+
         # === Scheme A: Spacy (High Accuracy Mode) ===
         if mode == "spacy" and nlp_spacy:
-            # 1. Increase limit slightly
-            nlp_spacy.max_length = 2000000 
-            
-            # 2. Chunking to prevent memory errors
-            chunk_size = 100000 
+            nlp_spacy.max_length = 2000000
+
+            # 按句子边界分块，避免在单词中间切断
+            chunk_size = 100000
             text_chunks = [text[i:i + chunk_size] for i in range(0, len(text), chunk_size)]
-            
+
             progress_bar = st.progress(0)
-            
+
             for i, chunk in enumerate(text_chunks):
                 progress_bar.progress((i + 1) / len(text_chunks))
-                
                 doc = nlp_spacy(chunk)
-                
+
                 for token in doc:
-                    # Basic filtering
-                    if (token.is_alpha and 
-                        not token.is_stop and 
+                    if (token.is_alpha and
+                        not token.is_stop and
                         len(token.text) >= min_len and
                         token.pos_ in ['NOUN', 'VERB', 'ADJ', 'ADV']):
-                        
+
                         lemma = token.lemma_.lower()
-                        
-                        # [CRITICAL FIX] 强制正则校验：必须全是 a-z
                         if not re.match(r"^[a-z]+$", lemma):
                             continue
-
-                        # User Filter
                         if filter_set and lemma in filter_set:
                             continue
-                            
-                        final_lemmas.append(lemma)
-            
-            progress_bar.empty() 
+                        word_counts[lemma] = word_counts.get(lemma, 0) + 1
+
+            progress_bar.empty()
 
         # === Scheme B: NLTK (Fast / Fallback Mode) ===
         else:
-            # NLTK logic (already uses Regex [A-Za-z], so it's safe)
-            cleaned = [re.sub(r'[^a-z]', '', w.lower()) for w in re.findall(r"[A-Za-z-]+", text) if w]
+            tokens = [w.lower() for w in re.findall(r"[A-Za-z-]+", text) if w]
+            tagged = pos_tag(tokens)
             l = WordNetLemmatizer()
-            lemmatized = [l.lemmatize(w) for w in cleaned]
-            
-            stops = set(stopwords.words('english'))
-            for w in lemmatized:
-                # Double check specifically for NLTK just in case
-                if len(w) >= min_len and w not in stops and (not filter_set or w not in filter_set):
-                    if re.match(r"^[a-z]+$", w): 
-                        final_lemmas.append(w)
 
-        # Remove duplicates
-        return list(dict.fromkeys(final_lemmas))
+            for word, tag in tagged:
+                clean = re.sub(r'[^a-z]', '', word)
+                if len(clean) < min_len or clean in stops:
+                    continue
+                lemma = l.lemmatize(clean, get_wordnet_pos(tag))
+                if not re.match(r"^[a-z]+$", lemma):
+                    continue
+                if filter_set and lemma in filter_set:
+                    continue
+                word_counts[lemma] = word_counts.get(lemma, 0) + 1
+
+        # 按词频降序返回 [(word, count), ...]
+        return sorted(word_counts.items(), key=lambda x: x[1], reverse=True)
 def copy_btn(text):
     safe_text = json.dumps(text)
     components.html(f"""
@@ -376,7 +374,7 @@ if "工作台" in menu:
         with st.container(border=True):
             st.markdown("##### 🛠️ 提取配置")
             nlp_mode = st.selectbox("AI 引擎", ["nltk (快速)", "spacy (精准)"])
-            sort_order = st.selectbox("排序", ["按文本出现顺序", "A-Z 排序", "随机打乱"])
+            sort_order = st.selectbox("排序", ["按词频排序", "A-Z 排序", "随机打乱"])
             min_len = st.slider("最短词长", 2, 15, 3)
             
             st.divider()
@@ -423,10 +421,11 @@ if "工作台" in menu:
             
             mode_key = "spacy" if "spacy" in nlp_mode else "nltk"
             words = process_words(full_text, mode_key, min_len, filter_set)
-            
-            if sort_order == "A-Z 排序": words.sort()
+
+            if sort_order == "A-Z 排序": words.sort(key=lambda x: x[0])
             elif sort_order == "随机打乱": random.shuffle(words)
-            
+            # "按词频排序" 保持 process_words 返回的默认顺序
+
             st.session_state.result_words = words
             st.rerun()
 
@@ -435,14 +434,17 @@ if "工作台" in menu:
         st.markdown("<br>", unsafe_allow_html=True)
         with st.container(border=True):
             words = st.session_state.result_words
-            content_str = "\n".join(words)
-            
+            # 展示格式：word (count)
+            display_str = "\n".join([f"{w} ({c})" for w, c in words])
+            # 纯单词列表，用于复制/导出/发布
+            plain_str = "\n".join([w for w, _ in words])
+
             st.markdown(f"### 🎉 提取结果 (共 {len(words)} 词)")
-            st.text_area("Result", value=content_str, height=200, label_visibility="collapsed")
-            
+            st.text_area("Result", value=display_str, height=200, label_visibility="collapsed")
+
             c1, c2, c3 = st.columns([1, 1, 1])
-            with c1: copy_btn(content_str)
-            with c2: st.download_button("📦 下载 (.txt)", content_str, "vocab.txt", "text/plain", use_container_width=True)
+            with c1: copy_btn(plain_str)
+            with c2: st.download_button("📦 下载 (.txt)", plain_str, "vocab.txt", "text/plain", use_container_width=True)
             with c3:
                 with st.popover("☁️ 发布到社区库", use_container_width=True):
                     with st.form("pub_form"):
@@ -450,16 +452,14 @@ if "工作台" in menu:
                         title = st.text_input("标题")
                         desc = st.text_area("描述")
                         if st.form_submit_button("发布"):
-                            if name.endswith(".txt"): save_to_github_library(name, content_str, title, desc)
+                            if name.endswith(".txt"): save_to_github_library(name, plain_str, title, desc)
                             else: st.error("文件名需以 .txt 结尾")
 
 # === 📚 公共词书库 ===
 elif "词书库" in menu:
     # 顶部工具栏卡片
     with st.container(border=True):
-        c_search, c_filter = st.columns([2, 1])
-        q = c_search.text_input("搜索", placeholder="🔍 搜索书名...", label_visibility="collapsed")
-        c_filter.multiselect("筛选", ["考研", "雅思", "托福"], label_visibility="collapsed", placeholder="标签筛选")
+        q = st.text_input("搜索", placeholder="🔍 搜索书名...", label_visibility="collapsed")
 
     # 动态读取 Library (修复点：从本地目录读取)
     try:
