@@ -15,6 +15,7 @@ from nltk.stem import WordNetLemmatizer
 from nltk.corpus import wordnet, stopwords
 from nltk import pos_tag
 from docx import Document
+from PyPDF2 import PdfReader
 
 # Optional Spacy
 try:
@@ -209,6 +210,9 @@ def extract_text_from_bytes(file_obj, filename):
         ext = filename.split('.')[-1].lower()
         if ext == 'docx':
             return "\n".join([p.text for p in Document(file_obj).paragraphs if p.text.strip()])
+        if ext == 'pdf':
+            reader = PdfReader(file_obj)
+            return "\n".join([page.extract_text() or "" for page in reader.pages])
         raw = file_obj.read()
         return raw.decode(chardet.detect(raw)['encoding'] or 'utf-8', errors='ignore')
     except: return ""
@@ -388,7 +392,7 @@ if "工作台" in menu:
             st.markdown("""
             <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
                 <b>📄 输入源 (Input Source)</b>
-                <span style="font-size:12px; color:#64748b; background:#f1f5f9; padding:2px 6px; border-radius:4px;">支持 .txt .srt .docx</span>
+                <span style="font-size:12px; color:#64748b; background:#f1f5f9; padding:2px 6px; border-radius:4px;">支持 .txt .srt .docx .pdf</span>
             </div>
             """, unsafe_allow_html=True)
             
