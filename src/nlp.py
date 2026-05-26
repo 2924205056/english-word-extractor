@@ -65,8 +65,8 @@ def extract_examples(text, word_counts):
     return examples
 
 
-def process_words(text, mode, min_len, filter_set=None, progress_cb=None):
-    """提取文本中的英文词汇，词形还原、去重、词频统计、例句匹配。
+def process_words(text, mode, min_len, filter_set=None, progress_cb=None, with_examples=False):
+    """提取文本中的英文词汇，词形还原、去重、词频统计。
 
     Args:
         text: 输入文本
@@ -74,9 +74,10 @@ def process_words(text, mode, min_len, filter_set=None, progress_cb=None):
         min_len: 最短词长
         filter_set: 要过滤掉的熟词集合
         progress_cb: 可选，spaCy 模式下回调 progress_cb(ratio)
+        with_examples: 是否匹配例句（默认 False，跳过以提升速度）
 
     Returns:
-        [(word, count, sentence), ...] 按词频降序
+        [(word, count, sentence), ...] 按词频降序，sentence 为空字符串当 with_examples=False
     """
     word_counts = {}
     stops = set(stopwords.words('english'))
@@ -117,6 +118,9 @@ def process_words(text, mode, min_len, filter_set=None, progress_cb=None):
             word_counts[lemma] = word_counts.get(lemma, 0) + 1
 
     sorted_words = sorted(word_counts.items(), key=lambda x: x[1], reverse=True)
-    examples = extract_examples(text, dict(sorted_words))
+
+    examples = {}
+    if with_examples:
+        examples = extract_examples(text, dict(sorted_words))
 
     return [(w, c, examples.get(w, "")) for w, c in sorted_words]

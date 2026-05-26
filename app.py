@@ -214,6 +214,11 @@ if "工作台" in menu:
             min_len = st.slider("最短词长", 2, 15, 3)
 
             st.divider()
+            st.markdown("##### 🎨 显示选项")
+            show_freq = st.checkbox("📊 显示词频", value=False)
+            show_examples = st.checkbox("📝 匹配例句", value=False)
+
+            st.divider()
             st.markdown("##### 🛡️ 熟词屏蔽")
             selected_presets = st.multiselect("预置库", PRESET_WORDLISTS.keys(), default=[])
             filter_file = st.file_uploader("自定义屏蔽表 (.txt)", type=['txt'])
@@ -266,7 +271,8 @@ if "工作台" in menu:
             with st.spinner("正在词性还原中..."):
                 words = process_words(full_text, mode_key, min_len, filter_set,
                                       progress_cb=lambda r: progress_bar.progress(r)
-                                      if progress_bar else None)
+                                      if progress_bar else None,
+                                      with_examples=show_examples)
             if progress_bar:
                 progress_bar.empty()
 
@@ -276,6 +282,8 @@ if "工作台" in menu:
                 random.shuffle(words)
 
             st.session_state.result_words = words
+            st.session_state.show_freq = show_freq
+            st.session_state.show_examples = show_examples
             st.rerun()
 
     # 结果展示
@@ -283,61 +291,80 @@ if "工作台" in menu:
         st.markdown("<br>", unsafe_allow_html=True)
         with st.container(border=True):
             words = st.session_state.result_words
+            _freq = st.session_state.get("show_freq", False)
+            _ex = st.session_state.get("show_examples", False)
 
-            display_str = "\n".join([
-                f"{w} ({c})" + (f"  — {s}" if s else "")
-                for w, c, s in words
-            ])
-            plain_str = "\n".join([w for w, _, _ in words])
-
-            csv_buf = io.StringIO()
-            writer = csv.writer(csv_buf)
-            writer.writerow(["word", "frequency", "sentence"])
+            # 按选项生成展示文本
+            lines = []
             for w, c, s in words:
-                writer.writerow([w, c, s])
-            csv_data = csv_buf.getvalue()
+                line = w
+                if _freq:
+                    line += f" ({c})"
+                if _ex and s:
+                    line += f"  — {s}"
+                lines.append(line)
+            display_str = "\n".join(lines)
+            plain_str = "\n".join([w for w, _, _ in words])
 
             st.markdown(f"### 🎉 提取结果 (共 {len(words)} 词)")
             st.text_area("Result", value=display_str, height=200, label_visibility="collapsed")
 
-            c1, c2, c3, c4 = st.columns([1, 1, 1, 1])
-            with c1:
-                copy_btn(plain_str)
-            with c2:
-                st.download_button("📦 下载 .txt", plain_str, "vocab.txt",
-                                   "text/plain", use_container_width=True)
-            with c3:
-                st.download_button("📊 下载 CSV", csv_data, "vocab.csv",
-                                   "text/csv", use_container_width=True)
-            with c4:
-                with st.popover("☁️ 发布到社区库", use_container_width=True):
-                    with st.form("pub_form"):
-                        name = st.text_input("文件名 (英文, e.g. friends_s1.txt)",
-                                            f"list_{int(time.time())}.txt")
-                        title = st.text_input("标题")
-                        desc = st.text_area("描述")
-                        if st.form_submit_button("发布"):
-                            if name.endswith(".txt"):
-                                secrets = None
-                                if "GITHUB_TOKEN" in st.secrets:
-                                    secrets = {
-                                        "GITHUB_TOKEN": st.secrets["GITHUB_TOKEN"],
-                                        "GITHUB_USERNAME": st.secrets["GITHUB_USERNAME"],
-                                        "GITHUB_REPO": st.secrets["GITHUB_REPO"],
-                                    }
-                                success, msg, cloud = save_to_library(
-                                    name, plain_str, title, desc, LIBRARY_DIR, secrets)
-                                if success:
-                                    if cloud:
-                                        st.toast("✅ 云端发布成功！", icon="🎉")
+            if _freq:
+                c1, c2, c3 = st.columns([1, 1, 1])
+                with c1:
+                    copy_btn(plain_str)
+                with c2:
+                    st.download_button("📦 下载 .txt", plain_str, "vocab.txt",
+                                       "text/plain", use_container_width=True)
+                with c3:
+                    csv_buf = io.StringIO()
+                    writer = csv.writer(csv_buf)
+                    header = ["word", "frequency"]
+                    if _ex: header.append("sentence")
+                    writer.writerow(header)
+                    for w, c, s in words:
+                        row = [w, c]
+                        if _ex: row.append(s)
+                        writer.writerow(row)
+                    csv_data = csv_buf.getvalue()
+                    st.download_button("📊 下载 CSV", csv_data, "vocab.csv",
+                                       "text/csv", use_container_width=True)
+            else:
+                c1, c2, c3 = st.columns([1, 1, 1])
+                with c1:
+                    copy_btn(plain_str)
+                with c2:
+                    st.download_button("📦 下载 .txt", plain_str, "vocab.txt",
+                                       "text/plain", use_container_width=True)
+                with c3:
+                    with st.popover("☁️ 发布到社区库", use_container_width=True):
+                        with st.form("pub_form"):
+                            name = st.text_input("文件名 (英文, e.g. friends_s1.txt)",
+                                                f"list_{int(time.time())}.txt")
+                            title = st.text_input("标题")
+                            desc = st.text_area("描述")
+                            if st.form_submit_button("发布"):
+                                if name.endswith(".txt"):
+                                    secrets = None
+                                    if "GITHUB_TOKEN" in st.secrets:
+                                        secrets = {
+                                            "GITHUB_TOKEN": st.secrets["GITHUB_TOKEN"],
+                                            "GITHUB_USERNAME": st.secrets["GITHUB_USERNAME"],
+                                            "GITHUB_REPO": st.secrets["GITHUB_REPO"],
+                                        }
+                                    success, msg, cloud = save_to_library(
+                                        name, plain_str, title, desc, LIBRARY_DIR, secrets)
+                                    if success:
+                                        if cloud:
+                                            st.toast("✅ 云端发布成功！", icon="🎉")
+                                        else:
+                                            st.toast("⚠️ 无 GitHub Token，仅保存到本地。", icon="📂")
+                                        time.sleep(0.3)
+                                        st.rerun()
                                     else:
-                                        st.toast("⚠️ 无 GitHub Token，仅保存到本地。", icon="📂")
-                                    time.sleep(0.3)
-                                    st.rerun()
+                                        st.error(msg)
                                 else:
-                                    st.error(msg)
-                            else:
-                                st.error("文件名需以 .txt 结尾")
+                                    st.error("文件名需以 .txt 结尾")
 
 
 # === 📚 公共词书库 ===
